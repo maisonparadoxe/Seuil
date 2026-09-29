@@ -162,7 +162,6 @@ body.menu-mode #app { max-width: none; padding: 0; }
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4), 0 24px 50px -12px #000;
   animation: entree 0.18s ease-out;
 }
-.modal.tirage-modal .modal-boite { max-width: 720px; }
 .modal.regles .modal-boite { max-width: 560px; }
 @keyframes entree { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .modal-sur { margin: 0 0 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--stamp-red); }
@@ -283,4 +282,47 @@ body.menu-mode #app { max-width: none; padding: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* ---------- Tirage de salles : à côté du plan, jamais par-dessus ---------- */
+.tirage-panel {
+  background: var(--paper); border: 2px solid var(--gold); border-radius: 3px; padding: 10px 12px 12px;
+  box-shadow: 0 0 16px rgba(185, 139, 42, 0.4), var(--card-shadow);
+}
+.tirage-panel h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 17px; font-weight: 400; }
+.tirage-aide { margin: 0 0 8px; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.4; color: var(--ink-soft); }
+.tirage-panel .tirage { grid-template-columns: 1fr; gap: 8px; }
+.tirage-panel .carte-salle { grid-template-columns: 78px 1fr; grid-template-areas: "mini nom" "mini desc" "mini fx" "mini portes" "mini theme"; column-gap: 10px; padding: 8px; justify-items: stretch; }
+.tirage-panel .carte-salle .mini { width: 78px; height: 78px; aspect-ratio: auto; }
+.tirage-panel .cs-nom { font-size: 16px; }
+.tirage-panel .cs-desc { font-size: 12px; }
+.tirage-panel .carte-salle:hover { transform: none; }
+.tirage-panel .carte-salle.sel { border-color: var(--stamp-red); background: #F0E4C4; box-shadow: 0 0 0 2px var(--stamp-red); }
+.tirage-panel .boutons { margin-top: 10px; gap: 8px; }
+.tirage-panel .btn { font-size: 15px; padding: 8px 12px; }
+.tirage-panel .note { display: block; margin: 8px 0 0; font-size: 10.5px; }
+
+.cell.draft-target { z-index: 3; outline: 3px dashed var(--gold); outline-offset: -3px; background: rgba(185, 139, 42, 0.14); animation: pulse 1.6s ease-in-out infinite; }
+.cell.draft-target.ghost { animation: none; background: none; outline-color: var(--gold); box-shadow: 0 0 20px rgba(185, 139, 42, 0.75); }
+.cell.ghost .room-svg { filter: none; opacity: 0.96; }
+.cible-q { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 30px; color: var(--gold); }
+
+@media (max-width: 860px) {
+  .tirage-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-height: 50vh; overflow-y: auto;
+    border-width: 2px 0 0; border-radius: 10px 10px 0 0; padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+  }
+  .tirage-panel h3 { font-size: 15px; }
+  .tirage-aide { margin-bottom: 6px; font-size: 11px; }
+  .tirage-panel .tirage { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tirage-panel .carte-salle { grid-template-columns: 1fr; grid-template-areas: "mini" "nom" "fx" "portes" "theme"; padding: 5px; justify-items: start; }
+  .tirage-panel .carte-salle .mini { width: 100%; height: auto; aspect-ratio: 1; }
+  .tirage-panel .cs-desc, .tirage-panel .note { display: none; }
+  .tirage-panel .cs-nom { font-size: 13px; }
+  .tirage-panel .cs-fx { font-size: 10px; }
+  .tirage-panel .cs-portes { font-size: 10px; }
+  .tirage-panel .theme-tag { font-size: 10px; padding: 0 5px; }
+  .tirage-panel .boutons { margin-top: 8px; flex-wrap: nowrap; }
+  .tirage-panel .btn { flex: 1; font-size: 14px; padding: 8px 6px; min-height: 42px; }
+  body.tirage-ouvert #app { padding-bottom: 54vh; }
 }

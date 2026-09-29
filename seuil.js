@@ -435,7 +435,7 @@
   // Actions du joueur
   // ------------------------------------------------------------------
   function modalOpen() {
-    return !document.getElementById("modal").hidden;
+    return !document.getElementById("modal").hidden || !!(G && G.draft);
   }
 
   function tenter(d) {
@@ -500,8 +500,9 @@
   function ouvrirTirage(d) {
     const { r, c } = G.pos;
     const tr = r + DIRS[d].dr, tc = c + DIRS[d].dc;
-    G.draft = { d, tr, tc, cands: tirage(d, tr, tc) };
-    modaleTirage();
+    G.draft = { d, tr, tc, sel: null, cands: tirage(d, tr, tc) };
+    render();
+    defilerVersCible();
   }
 
   function choisir(i) {
@@ -519,14 +520,30 @@
     deplacer(d);
   }
 
+  function apercu(i) {
+    const D = G.draft;
+    if (!D || !D.cands[i]) return;
+    if (D.sel === i) return choisir(i);
+    D.sel = i;
+    son("clic");
+    render();
+  }
+
+  // Sur petit écran, on amène la case visée au-dessus du tirage
+  function defilerVersCible() {
+    if (!G || !G.draft || !window.matchMedia("(max-width: 860px)").matches) return;
+    const el = document.querySelector('[data-cell="' + G.draft.tr + "," + G.draft.tc + '"]');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
   function relancer() {
     if (G.dice < 1) return;
     G.dice -= 1;
     const D = G.draft;
     D.cands = tirage(D.d, D.tr, D.tc);
+    D.sel = null;
     log("Vous jouez un dé : trois nouvelles salles.");
     son("clic");
-    modaleTirage();
     render();
   }
 
@@ -749,6 +766,7 @@
       for (let c = 0; c < COLS; c++) {
         const room = G.grid[r][c];
         const cur = G.pos.r === r && G.pos.c === c;
+        const cible = !!(G.draft && G.draft.tr === r && G.draft.tc === c);
         let cls = "cell";
         let contenu = "";
         let action = "";
@@ -759,7 +777,7 @@
             cls += " shift-ok" + (S.sel === ligne ? " shift-sel" : "");
             action = ` data-act="line" data-line="${ligne}"`;
           } else cls += " shift-no";
-        } else {
+        } else if (!G.draft) {
           // Voisinage de la salle actuelle
           let d = -1;
           for (let k = 0; k < 4; k++) if (G.pos.r + DIRS[k].dr === r && G.pos.c + DIRS[k].dc === c) d = k;
@@ -778,8 +796,16 @@
             cls += " current";
             contenu += `<img class="pion" src="img/salamandre.png" alt="Vous" onerror="this.outerHTML='<span class=&quot;pion-point&quot;></span>'">`;
           }
+        } else if (cible) {
+          cls += " draft-target";
+          const cd = G.draft.sel !== null ? G.draft.cands[G.draft.sel] : null;
+          if (cd) {
+            const cotes = [0, 1, 2, 3].map((k) => (cd.doors.includes(k) ? { s: "gap" } : { s: "wall" }));
+            contenu = salleSVG(cd.tpl, cotes, { nom: cd.tpl.court, theme: cd.theme, entree: opp(G.draft.d) });
+            cls += " ghost";
+          } else contenu = `<span class="cible-q">?</span>`;
         } else cls += " empty";
-        h += `<div class="${cls}" role="gridcell"${action}>${contenu}</div>`;
+        h += `<div class="${cls}" role="gridcell" data-cell="${r},${c}"${action}>${contenu}</div>`;
       }
     }
     return h + `</div>`;
@@ -889,6 +915,7 @@
       </div>
       <div class="hud-items">${gemmesHTML()}</div>
     </div>
+    ${G.draft ? tirageHTML() : ""}
     <section class="carte">
       <h3>Vous êtes ici</h3>
       <p class="salle-nom">${esc(room.tpl.nom)}</p>
@@ -913,6 +940,7 @@
   function render() {
     const app = document.getElementById("app");
     document.body.classList.toggle("menu-mode", !G);
+    document.body.classList.toggle("tirage-ouvert", !!(G && G.draft));
     if (!G) return (app.innerHTML = menuHTML());
     app.innerHTML = `
       <header class="entete">
@@ -1047,32 +1075,32 @@
     if (b) b.focus();
   }
 
-  function modaleTirage() {
+  function tirageHTML() {
     const D = G.draft;
     const cartes = D.cands
       .map((cd, i) => {
         const cotes = [0, 1, 2, 3].map((k) => (cd.doors.includes(k) ? { s: "gap" } : { s: "wall" }));
-        const fx = cd.tpl.fx;
-        return `<button class="carte-salle ${cd.tpl.kind}" data-act="pick" data-i="${i}">
+        const sel = D.sel === i;
+        return `<button class="carte-salle ${cd.tpl.kind}${sel ? " sel" : ""}" data-act="apercu" data-i="${i}" aria-pressed="${sel}">
           <span class="mini">${salleSVG(cd.tpl, cotes, { entree: opp(D.d), theme: cd.theme })}</span>
           <span class="cs-nom">${esc(cd.tpl.nom)}</span>
           <span class="cs-desc">${esc(cd.tpl.desc)}</span>
-          <span class="cs-fx">${esc(effetTexte(fx))}</span>
+          <span class="cs-fx">${esc(effetTexte(cd.tpl.fx))}</span>
           <span class="cs-portes">${cd.sorties === 0 ? "Cul-de-sac" : cd.sorties + " sortie" + (cd.sorties > 1 ? "s" : "")}</span>
           ${cd.theme ? `<span class="cs-theme theme-tag" style="--t:${THEMES[cd.theme].couleur}">${THEMES[cd.theme].glyphe} ${THEMES[cd.theme].nom}</span>` : ""}
         </button>`;
       })
       .join("");
-    afficherModale(
-      `<p class="modal-sur">La porte du ${DIRS[D.d].nom} s'ouvre ${DIRS[D.d].fleche}</p>
-       <h2>Choisissez la salle</h2>
-       <div class="tirage">${cartes}</div>
-       <div class="boutons">
-         <button class="btn" data-act="reroll"${G.dice < 1 ? " disabled" : ""}>🎲 Relancer (${G.dice})</button>
-       </div>
-       <p class="note">Le haut de chaque plan est le nord. Le triangle rouge marque l'entrée ; les autres ouvertures sont les sorties. La couleur d'une salle est le thème des énigmes de ses portes de sortie.</p>`,
-      "tirage-modal"
-    );
+    return `<section class="tirage-panel" aria-label="Choix de la salle">
+      <h3>Porte du ${DIRS[D.d].nom} ${DIRS[D.d].fleche} : quelle salle ?</h3>
+      <p class="tirage-aide">${D.sel === null ? "Touchez une salle pour la voir sur le plan, à l'emplacement marqué ?" : "Aperçu sur le plan. Touchez « Choisir » (ou la salle) pour la poser."}</p>
+      <div class="tirage">${cartes}</div>
+      <div class="boutons">
+        <button class="btn principal" data-act="pick"${D.sel === null ? " disabled" : ""}>Choisir cette salle</button>
+        <button class="btn" data-act="reroll"${G.dice < 1 ? " disabled" : ""}>🎲 Relancer (${G.dice})</button>
+      </div>
+      <p class="note">Le triangle rouge marque l'entrée ; les autres ouvertures sont les sorties. La couleur d'une salle est le thème des énigmes de ses portes de sortie.</p>
+    </section>`;
   }
 
   function modaleFin() {
@@ -1178,8 +1206,11 @@
           }
         }
         break;
+      case "apercu":
+        apercu(parseInt(el.getAttribute("data-i"), 10));
+        break;
       case "pick":
-        choisir(parseInt(el.getAttribute("data-i"), 10));
+        if (G && G.draft && G.draft.sel !== null) choisir(G.draft.sel);
         break;
       case "gem": {
         if (!G || G.over || modalOpen()) break;
@@ -1230,7 +1261,8 @@
         if (G) G.pending = null;
         fermerModale();
       } else if (pz && !pz.fini && pz.puzzle.kind === "mcq" && /^[1-4]$/.test(ev.key) && parseInt(ev.key, 10) <= pz.puzzle.options.length) repondre(pz.puzzle.options[parseInt(ev.key, 10) - 1]);
-      else if (G && G.draft && /^[1-3]$/.test(ev.key)) choisir(parseInt(ev.key, 10) - 1);
+      else if (G && G.draft && /^[1-3]$/.test(ev.key)) apercu(parseInt(ev.key, 10) - 1);
+      else if (G && G.draft && ev.key === "Enter" && G.draft.sel !== null) choisir(G.draft.sel);
       return;
     }
     if (!G || G.over) return;
