@@ -1,8 +1,8 @@
 # Seuil : document de conception
 
-Ce document garde la mémoire des décisions prises pour faire évoluer Seuil d'un prototype de labyrinthe à énigmes vers un **deckbuilder roguelike où les salles sont les cartes**. Chaque décision a été discutée et tranchée ; les points encore ouverts sont listés en fin de document.
+Ce document garde la mémoire des décisions prises pour faire évoluer Seuil d'un prototype de labyrinthe à énigmes vers un **deckbuilder roguelike où les salles sont les cartes**. Chaque décision a été discutée et tranchée. Il ne reste que quelques détails de contenu, listés en fin de document.
 
-Dernière mise à jour : 29 septembre 2026.
+Dernière mise à jour : 29 septembre 2026 (points ouverts tranchés).
 
 ## 1. Où en est le jeu aujourd'hui
 
@@ -29,9 +29,12 @@ Une expédition traverse **trois étages** d'un labyrinthe des Gardiens du seuil
 | --- | --- |
 | Cycle | Pioche, défausse, remélange. À chaque porte, on tire 3 cartes de la pioche et on en joue une. Les trois vont ensuite à la défausse. Quand la pioche a moins de 3 cartes, on y remélange la défausse. La salle reste sur le plan, mais la carte revient dans le cycle. |
 | Taille | Départ à **8 cartes**, plafond à **15**. |
+| Deck de départ | 2 Galeries, 2 Coudes, 1 Fourche, 1 Salle en T, 1 Cellier (+8 pas), 1 Réfectoire (+5 pas). La **couleur d'une carte est fixe** : les six salles de passage et le Réfectoire se répartissent sur les quatre thèmes (chiffres, mots, logique, symboles) pour que toutes les énigmes soient possibles au début. Le Cellier, cul-de-sac, n'a pas de thème. Les cartes spéciales (gemmes, dés, fragments) se gagnent en cours de partie. |
 | Gains | Une porte difficile (niveau 3) offre le choix d'une carte nouvelle parmi trois. Une salle **Boutique** (elle-même une carte du deck) vend des cartes. |
 | Retrait et amélioration | Retirer une carte coûte de la monnaie (Boutique ou Atelier). Une amélioration est rare et ne se fait que dans une salle particulière. |
 | Monnaie | Une seule, gagnée aux énigmes selon la difficulté de la porte et le temps restant. Les salles bonus peuvent en donner. |
+| Gains | Porte niveau 1 : 2 pièces. Niveau 2 : 3. Niveau 3 : 5. Plus **1 pièce** si l'énigme est résolue avec plus de la moitié du temps restant. Un étage rapporte environ 40 pièces. |
+| Prix | Carte courante 6. Carte spéciale 10. Retrait d'une carte 5 (+2 à chaque retrait). Joker commun 8, peu commun 14, rare 22. Emplacement de joker supplémentaire 15, puis 25. Économie « moyenne » : on achète 3 à 5 choses par étage. À régler après quelques parties. |
 | Couleurs | La couleur reste le thème des énigmes des portes de sortie : le deck décide de ce qu'on affronte. Poser une salle contre une salle de même couleur rapporte **1 pièce**. |
 
 ### 3.2 Les jokers
@@ -44,9 +47,10 @@ Des règles passives qui modifient le tirage, les énigmes ou l'économie, dans 
 | Obtention | En Boutique : 2 cartes et 2 jokers proposés, les jokers coûtant plus cher que les cartes et d'autant plus qu'ils sont rares. |
 | Revente | À moitié prix. |
 | Persistance | **Un joker fétiche** est gardé d'une partie à l'autre : à la fin d'une partie qui atteint la Chambre, le joueur en choisit un à emporter. N'importe quel joker peut l'être, même un rare, mais il occupe un emplacement et ne peut pas être échangé. |
-| Catalogue initial | 12 jokers en trois raretés (voir ci-dessous). |
+| Catalogue initial | 12 jokers simples en trois raretés, plus **3 jokers « malédiction »** (forts, avec un inconvénient), soit 15 au total (voir ci-dessous). |
+| Prix | Commun 8, peu commun 14, rare 22 (voir 3.1). La revente est à moitié prix. |
 
-Brouillon du catalogue (prix relatifs, à caler sur la monnaie réellement gagnée) :
+Brouillon du catalogue. Les prix indiqués ci-dessous sont ceux de la version d'origine (relatifs) : ce sont ceux du tableau des prix de 3.1 qui font foi.
 
 | Rareté | Joker | Effet | Famille |
 | --- | --- | --- | --- |
@@ -63,12 +67,20 @@ Brouillon du catalogue (prix relatifs, à caler sur la monnaie réellement gagn�
 | | Second souffle | Une énigme ratée par partie ne condamne pas la porte | Énigmes |
 | | Alambic | Les effets des salles bonus (pas, dés, sceaux) sont doublés | Économie |
 
+Jokers « malédiction » : trois jokers puissants, de rareté peu commune ou rare, avec une contrepartie. Exemples à affiner :
+
+| Joker | Effet | Prix à payer |
+| --- | --- | --- |
+| Sablier fêlé | +10 secondes à chaque énigme | 3 pas de moins à chaque étage |
+| Pacte du fondeur | +1 pièce à chaque énigme résolue | Plafond du deck réduit de 3 |
+| Poing des Gardiens | Les gemmes décalent de 2 crans | La salle du joueur est aussi entraînée par le décalage |
+
 ### 3.3 Les niveaux (les étages)
 
 | Sujet | Décision |
 | --- | --- |
 | Structure | Une partie est une **suite de 3 étages**, avec le même deck, les mêmes jokers et les mêmes pièces d'un étage à l'autre. Une Boutique s'intercale entre les étages. La dernière Chambre est la vraie fin. |
-| Pas | Renouvelés à chaque étage (point de départ : 45, 40, 35). |
+| Pas | Renouvelés à chaque étage. **Chaque plan a son propre nombre de pas**, écrit dans le plan en fonction de sa forme. Repère : environ 5 fois la distance la plus courte jusqu'à la Chambre (45 pour le plan actuel, où elle est de 8 cases, avec une marge), réduit d'un cran à chaque étage plus dur. |
 | Difficulté | Elle monte par les portes : étage 1 surtout niveaux 1 et 2, étage 2 niveaux 2 et 3, étage 3 surtout niveau 3, avec plus de portes verrouillées et moins de portes ouvertes. |
 | Plans | **Écrits à la main**, en petite banque (2 ou 3 par niveau de difficulté). La graine choisit quel plan sert à chaque étage et peut le retourner en miroir. |
 | Cases immobiles | Deux types : les **cases murées** (obstacle : aucune salle dessus, on ne les traverse pas) et les **salles fixes** (posées d'avance, avec leurs portes, jamais déplacées, par exemple une Boutique). |
@@ -86,6 +98,13 @@ Le vestibule           Les deux ailes        La croix
 . . D . .              . . D . .             # . D . #
 ```
 
+### 3.3 bis Dés et sceaux
+
+| Sujet | Décision |
+| --- | --- |
+| Rôle | Un **dé** défausse les 3 cartes tirées et en tire 3 nouvelles. Un **sceau** ouvre une porte sans énigme (sans pièces ni récompense). |
+| Quantité | **Renouvelés à chaque étage** : 1 dé et 1 sceau au début de chaque étage. La Boutique ne les vend pas ; les salles bonus peuvent encore en donner en cours d'étage. |
+
 ### 3.4 Les graines
 
 - Une **graine aléatoire**, toujours affichée et copiable, pour rejouer ou partager une partie.
@@ -97,16 +116,23 @@ Détail technique important : l'aléatoire du navigateur est remplacé par un g�
 
 ### 3.5 La progression entre parties
 
-Le deck repart de zéro à chaque partie. On progresse **en variété, pas en puissance** : les exploits, les parties réussies et les fragments du carnet de Valcourt débloquent de nouvelles cartes et de nouveaux jokers dans les pools de récompense et de boutique. Seul le joker fétiche traverse les parties (voir 3.2).
+Le deck repart de zéro à chaque partie. On progresse **en variété, pas en puissance** : de nouvelles cartes et de nouveaux jokers rejoignent les pools de récompense et de boutique. Seul le joker fétiche traverse les parties (voir 3.2).
+
+Le contenu se débloque par **des exploits ciblés, lisibles** (le joueur voit ce qu'il vise) et par **le carnet** :
+
+- Chaque exploit débloque une carte ou un joker. Exemples : atteindre la Chambre du 1er étage ; finir un étage sans condamner une seule porte ; gagner avec un deck de 8 cartes ; réussir 10 énigmes de Logique en une partie.
+- Les fragments du carnet de Valcourt débloquent les cartes liées à l'histoire.
+- Perdre ne bloque pas la progression : les exploits se valident même dans une partie perdue.
 
 ## 4. Points encore ouverts
 
-1. **Le deck de départ.** Les 8 cartes exactes. Proposition : galeries, coudes, une fourche, une croisée, un cellier et une salle de thème.
-2. **Les chiffres de l'économie.** Pièces gagnées par énigme, prix des cartes, des jokers et des retraits.
-3. **Les dés et les sceaux.** Un dé relance-t-il le tirage de trois cartes ? Un sceau garde-t-il son rôle ?
-4. **Les jokers.** Y a-t-il des jokers « malédiction » (forts mais avec un inconvénient) ? Comment débloque-t-on les nouveaux : exploits liés au carnet, aux thèmes réussis, aux victoires ?
-5. **Le nombre de pas par étage** (point de départ : 45, 40, 35).
-6. **La liste des cartes à débloquer** : un premier lot de 10 à 15 cartes nouvelles, en plus des 20 salles actuelles.
+Il ne reste que du contenu à écrire et à régler en jouant :
+
+1. **La liste des exploits** et ce que chacun débloque (un premier lot de 10 à 15).
+2. **Les cartes à débloquer** : un premier lot de 10 à 15 cartes nouvelles, en plus des 20 salles actuelles, avec leur couleur.
+3. **Le détail des trois jokers « malédiction »**, à affiner après les premiers essais.
+4. **Le réglage des chiffres de l'économie** (gains, prix) et des pas de chaque plan, à faire après quelques parties.
+5. **Les plans** : une petite banque à dessiner (2 ou 3 par niveau de difficulté), avec leurs pas.
 
 ## 5. Ordre de développement proposé
 
