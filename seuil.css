@@ -373,3 +373,45 @@ body.menu-mode #app { max-width: none; padding: 0; }
   position: sticky; bottom: -22px; margin: 10px -22px -22px; padding: 10px 22px 14px;
   background: linear-gradient(to bottom, rgba(232, 223, 200, 0), var(--paper) 30%);
 }
+
+/* ---------- Jokers ---------- */
+.jokers .joker-liste { display: grid; gap: 6px; }
+.joker {
+  display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; align-items: center; text-align: left; width: 100%;
+  padding: 6px 9px; background: var(--paper-dark); color: var(--ink); font-family: var(--font-body);
+  border: 1px solid var(--ink); border-left: 6px solid var(--r, #6E655A); border-radius: 3px;
+}
+button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r, #6E655A); }
+.joker .j-ico { grid-row: 1 / 3; font-size: 22px; }
+.joker .j-nom { font-family: var(--font-display); font-size: 15px; }
+.joker .j-desc { font-size: 11.5px; line-height: 1.3; color: var(--ink-soft); }
+.joker.vide { display: block; border-style: dashed; border-left-width: 1px; color: var(--muted); font-style: italic; text-align: center; padding: 9px; }
+.joker.maudit { background: #EBD3CB; }
+.joker.decl { animation: decl 1.3s ease-out; }
+@keyframes decl {
+  0% { box-shadow: 0 0 0 0 rgba(185, 139, 42, 0.95); transform: scale(1.05); }
+  100% { box-shadow: 0 0 0 16px rgba(185, 139, 42, 0); transform: none; }
+}
+.joker-chip { cursor: pointer; font-size: 15px; }
+.toast-pile { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; max-width: 92vw; }
+.toast {
+  background: var(--ink); color: #F3EBD6; border: 2px solid var(--gold); padding: 7px 12px; border-radius: 3px;
+  font-family: var(--font-mono); font-size: 12.5px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); animation: entree 0.2s ease-out; transition: opacity 0.5s;
+}
+.toast.sortie { opacity: 0; }
+.temp-tag { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold); font-weight: 600; }
+.sous-titre { margin: 10px 0 6px; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stamp-red); display: flex; justify-content: space-between; }
+.offre-joker { grid-template-columns: 40px 1fr auto; }
+.offre-joker .j-ico { font-size: 28px; text-align: center; }
+.offre-joker.maudit { background: #EBD3CB; }
+.offre-slot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border: 1px dashed var(--muted); border-radius: 3px; font-family: var(--font-mono); font-size: 12px; }
+.tirage.n4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 860px) {
+  .tirage-panel .tirage.n4 { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .tirage-panel .n4 .carte-salle { padding: 4px; }
+  .tirage-panel .n4 .cs-nom { font-size: 11px; }
+  .tirage-panel .n4 .cs-fx, .tirage-panel .n4 .cs-portes { font-size: 9px; }
+  .tirage-panel .n4 .theme-tag { font-size: 9px; padding: 0 3px; }
+  .tirage-panel .n4 .temp-tag { display: block; font-size: 9px; }
+}
+@media (min-width: 861px) { .tirage-panel .tirage.n4 { grid-template-columns: 1fr; } }

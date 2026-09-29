@@ -140,7 +140,7 @@ Chaque étape se teste seule.
 
 1. **Le moteur du deck** (fait). Générateur de hasard à graine, pioche, défausse et remélange, deck de départ.
 2. **L'économie** (fait). Monnaie, récompenses, Boutique, retrait, plafond de 15.
-3. **Les jokers.** Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement. C'est là que vivent les effets de voisinage entre salles de même couleur.
+3. **Les jokers** (fait). Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement. C'est là que vivent les effets de voisinage entre salles de même couleur.
 4. **Les niveaux.** Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages avec pas propres à chaque plan.
 5. **La progression entre parties.** Cartes et jokers débloqués par des exploits, joker fétiche, écran des graines et défi du jour complets.
 
@@ -148,6 +148,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Étape 3 : les jokers, faite** (voir plus bas).
 - **Étape 2 : l'économie, faite** (voir plus bas).
 - **Étape 1 : le moteur du deck, fait.** Générateur de hasard à graine (flux séparés par porte, énigme, pioche et orientation des salles), deck de départ de 8 cartes à couleur fixe, cycle pioche, défausse et remélange, dés qui défaussent et retirent 3 cartes, fenêtre « Deck », graine affichée et copiable, saisie d'une graine et défi du jour dans le menu.
   - Vérifié par des parties automatiques : même graine, même partie ; graines différentes, parties différentes ; aucun appel au hasard du navigateur pendant une partie ; le deck conserve toujours ses 8 cartes, réparties entre pioche, défausse et main.
@@ -161,6 +162,29 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 - **Achat et retrait.** Carte courante 6 pièces, carte spéciale 10. Retrait d'une carte 5 pièces, puis 7, 9, etc. On ne peut pas descendre sous 4 cartes ni dépasser 15. Les salles pièges ne sont jamais proposées.
 - **Écart temporaire avec la conception.** Le document prévoyait des récompenses sur les portes de niveau 3 seulement. Comme il n'y a qu'un étage pour l'instant, les portes de niveau 3 sont trop tardives : une porte de niveau 2 offre une carte une fois sur deux, une de niveau 3 toujours. À revoir quand les étages existeront. Les jokers ne sont pas encore en vente (étape 4).
 - **Correction au passage.** La touche Échap ne ferme plus les fenêtres de décision (résultat d'énigme, récompense, boutique) : elle pouvait laisser la partie dans un état incohérent.
+
+### Étape 3 : les jokers (faite)
+
+- **Emplacements.** 3 au départ, jusqu'à 5 : 15 pièces pour le quatrième, 25 pour le cinquième, en boutique. Le panneau montre les jokers (bordure de rareté, teinte rouge pour les malédictions) ; toucher un joker en affiche la description.
+- **Boutique.** Chaque boutique vend 2 jokers, tirés selon la rareté, jamais un joker déjà possédé. Prix : commun 8, peu commun 14, rare 22. La revente se fait à moitié prix.
+- **Signal de déclenchement.** Une bulle en haut de l'écran et un éclat sur l'emplacement du joker indiquent quand il agit. Les effets fréquents (temps en plus, pièces) n'écrivent pas dans le journal.
+- **Les 15 jokers sont actifs** : Loupe de Valcourt, Pièce fêlée, Baguette de sourcier, Craie du géomètre, Sacoche du serrurier, Clé à quatre dents, Ciseau de lapidaire, Boussole du nord, Sentier de couleur, Quatrième main, Second souffle, Alambic, et les trois malédictions Sablier fêlé, Pacte du fondeur, Poing des Gardiens.
+
+Choix d'implémentation à connaître :
+
+| Joker | Comment il est réalisé |
+| --- | --- |
+| Clé à quatre dents | Une fois sur 3, une **Croisée temporaire** (4 portes, thème au hasard) prend la place de la dernière carte tirée, qui retourne en haut de la pioche. La carte temporaire disparaît après usage et n'entre jamais dans le deck. |
+| Boussole du nord | Si aucune carte du tirage n'a de porte en face du joueur, une carte est échangée avec la première carte de la pioche qui en a une. « Si le deck le permet » : si aucune n'est dans la pioche, rien ne change (3 tirages sur 200 restent sans porte en face, contre 34 sans le joker). |
+| Second souffle | Le premier échec de la partie laisse la porte verrouillée. La retentative pose une **autre énigme** (le numéro de tentative entre dans la graine de l'énigme), pour ne pas offrir la réponse déjà révélée. |
+| Sablier fêlé | −3 pas **à l'achat**, faute d'étages pour l'instant. Le malus se répétera au début de chaque étage quand ils existeront. |
+| Pacte du fondeur | Refusé à l'achat si le deck dépasse le plafond réduit. |
+| Sacoche du serrurier | Vente refusée si le deck dépasserait ensuite le plafond. |
+| Poing des Gardiens | Les gemmes décalent toujours de 2 crans, et la ligne ou colonne du joueur devient décalable : le joueur est entraîné avec sa salle. Le Vestibule et la Chambre restent immobiles. |
+| Sentier de couleur | Chaque entrée dans une salle de même couleur que celle qu'on quitte a 50 % de chance d'être gratuite (tirage lié à la graine). |
+| Alambic | Double les pas positifs, dés et sceaux des salles bonus. Pas le temps, les gemmes ni les fragments. |
+
+Vérifié par des tests automatiques : chaque effet séparément, l'achat, la revente, les emplacements, le refus des jokers incompatibles, la fréquence de la Clé (105 tirages sur 300, soit environ 1 sur 3) et du Sentier (environ 45 %), le déterminisme des parties avec jokers, et l'absence de tout appel au hasard du navigateur.
 
 ## 6. Risques à surveiller
 

@@ -160,6 +160,35 @@
   const PRIX_CARTE_SPECIALE = 10;
   const PRIX_RETRAIT = 5; // +2 à chaque retrait
   const SALLES_MARCHAND = 10; // un marchand de passage toutes les 10 salles posées
+
+  // ---- Les jokers : des règles passives, achetées en boutique ----
+  const RARETES = {
+    commun: { nom: "Commun", prix: 8, w: 6, couleur: "#6E655A" },
+    peu: { nom: "Peu commun", prix: 14, w: 3, couleur: "#3F5B66" },
+    rare: { nom: "Rare", prix: 22, w: 1, couleur: "#B98B2A" },
+  };
+  const EMPLACEMENTS_DEPART = 3;
+  const EMPLACEMENTS_MAX = 5;
+  const PRIX_EMPLACEMENT = { 3: 15, 4: 25 };
+  const JOKERS = [
+    { id: "loupe", nom: "Loupe de Valcourt", rar: "commun", famille: "Énigmes", icone: "🔍", desc: "+5 secondes à chaque énigme." },
+    { id: "piece", nom: "Pièce fêlée", rar: "commun", famille: "Économie", icone: "🪙", desc: "+1 pièce à chaque énigme résolue." },
+    { id: "sourcier", nom: "Baguette de sourcier", rar: "commun", famille: "Gemmes", icone: "🌿", desc: "Les salles à gemmes apparaissent deux fois plus souvent en récompense et en boutique." },
+    { id: "craie", nom: "Craie du géomètre", rar: "commun", famille: "Plan", icone: "📐", desc: "Poser une salle contre une salle de même couleur rapporte 1 pièce." },
+    { id: "sacoche", nom: "Sacoche du serrurier", rar: "peu", famille: "Deck", icone: "👜", desc: "+3 au plafond du deck." },
+    { id: "cle", nom: "Clé à quatre dents", rar: "peu", famille: "Tirage", icone: "🗝", desc: "Une fois sur 3, une salle à 4 portes s'ajoute à votre tirage. Elle n'entre pas dans votre deck." },
+    { id: "ciseau", nom: "Ciseau de lapidaire", rar: "peu", famille: "Gemmes", icone: "💎", desc: "Vos gemmes décalent de 1 ou 2 crans, même les gemmes courantes." },
+    { id: "boussole", nom: "Boussole du nord", rar: "peu", famille: "Tirage", icone: "🧭", desc: "Chaque tirage contient, si votre deck le permet, une salle avec une porte en face de vous." },
+    { id: "sentier", nom: "Sentier de couleur", rar: "peu", famille: "Pas", icone: "🌈", desc: "En entrant dans une salle de même couleur que celle que vous quittez, 50 % de chance que le pas ne coûte rien." },
+    { id: "main4", nom: "Quatrième main", rar: "rare", famille: "Tirage", icone: "🖐", desc: "Vous tirez 4 cartes au lieu de 3." },
+    { id: "souffle", nom: "Second souffle", rar: "rare", famille: "Énigmes", icone: "💨", desc: "Une énigme ratée par partie ne condamne pas la porte : vous pourrez la retenter." },
+    { id: "alambic", nom: "Alambic", rar: "rare", famille: "Économie", icone: "⚗", desc: "Les pas, les dés et les sceaux des salles bonus sont doublés." },
+    { id: "sablier2", nom: "Sablier fêlé", rar: "peu", maudit: true, famille: "Énigmes", icone: "⌛", desc: "+10 secondes à chaque énigme. Prix : 3 pas de moins tout de suite (et à chaque nouvel étage).", prix: "−3 pas" },
+    { id: "pacte", nom: "Pacte du fondeur", rar: "peu", maudit: true, famille: "Économie", icone: "📜", desc: "+1 pièce à chaque énigme résolue. Prix : le plafond du deck est réduit de 3.", prix: "plafond −3" },
+    { id: "poing", nom: "Poing des Gardiens", rar: "rare", maudit: true, famille: "Gemmes", icone: "✊", desc: "Vos gemmes décalent toujours de 2 crans et peuvent aussi décaler votre propre ligne : votre salle est entraînée avec elle.", prix: "votre salle bouge aussi" },
+  ];
+  const JOKERS_PAR_ID = {};
+  JOKERS.forEach((j) => (JOKERS_PAR_ID[j.id] = j));
   // Deck de départ : [salle, thème]. La couleur d'une carte est fixe.
   const DECK_DEPART = [
     ["galerie", "chiffres"],
@@ -395,6 +424,11 @@
       boutique: null,
       visite: null,
       boutiqueOfferte: false,
+      jokers: [],
+      slots: EMPLACEMENTS_DEPART,
+      souffle: false,
+      tempUid: 0,
+      flash: null,
       steps: START_STEPS,
       dice: 1,
       seals: 1,
@@ -509,20 +543,87 @@
   }
 
   function tirage(d, tr, tc) {
-    const main = piocher(3);
+    const main = piocher(tailleMain());
     G.tirages += 1;
-    return main.map((card, i) => avecFlux("miroir:" + G.tirages + ":" + i, () => candidat(card, d, tr, tc)));
+    // Clé à quatre dents : une fois sur 3, une salle à 4 portes (temporaire) prend la place de la dernière carte
+    if (aJoker("cle") && main.length) {
+      const th = avecFlux("cle:" + G.tirages, () => (R() < 1 / 3 ? pick(THEME_IDS) : null));
+      if (th) {
+        G.pioche.unshift(main.pop()); // la carte remplacée retourne en haut de la pioche
+        main.push({ uid: -(++G.tempUid), id: "croisee", theme: th, temp: true });
+        declencher("cle", "une salle à 4 portes s'ajoute à votre tirage");
+      }
+    }
+    const cands = main.map((card, i) => avecFlux("miroir:" + G.tirages + ":" + i, () => candidat(card, d, tr, tc)));
+    // Boussole du nord : au moins une salle avec une porte en face, si la pioche en contient une
+    let ecartable = -1; // on n'écarte jamais une carte temporaire : elle ne peut pas retourner dans la pioche
+    cands.forEach((c, x) => {
+      if (!c.card.temp) ecartable = x;
+    });
+    if (aJoker("boussole") && ecartable >= 0 && !cands.some((c) => c.doors.includes(d))) {
+      for (let j = 0; j < G.pioche.length; j++) {
+        const cd = avecFlux("boussole:" + G.tirages + ":" + j, () => candidat(G.pioche[j], d, tr, tc));
+        if (cd.doors.includes(d)) {
+          const sortie = cands.splice(ecartable, 1)[0];
+          G.pioche[j] = sortie.card; // la carte écartée prend sa place dans la pioche
+          cands.push(cd);
+          declencher("boussole", "une salle avec une porte en face de vous");
+          break;
+        }
+      }
+    }
+    return cands;
+  }
+
+  // ---- Jokers : aides et effets ----
+  const aJoker = (id) => !!G && G.jokers.includes(id);
+  const plafondDeck = () => PLAFOND_DECK + (aJoker("sacoche") ? 3 : 0) - (aJoker("pacte") ? 3 : 0);
+  const bonusTemps = () => G.timeBonus + (aJoker("loupe") ? 5 : 0) + (aJoker("sablier2") ? 10 : 0);
+  const tempsPorte = (niveau) => (TEMPS_BASE[niveau] || 35) + bonusTemps();
+  const tailleMain = () => (aJoker("main4") ? 4 : 3);
+  // Crans autorisés pour une gemme
+  function crans(g) {
+    if (aJoker("poing")) return [2];
+    return (aJoker("ciseau") ? 2 : g.max) === 2 ? [1, 2] : [1];
+  }
+  const prixJoker = (j) => RARETES[j.rar].prix;
+
+  function toast(msg) {
+    let pile = document.getElementById("toasts");
+    if (!pile) {
+      pile = document.createElement("div");
+      pile.id = "toasts";
+      pile.className = "toast-pile";
+      document.body.appendChild(pile);
+    }
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = msg;
+    pile.appendChild(el);
+    setTimeout(() => el.classList.add("sortie"), 2000);
+    setTimeout(() => el.remove(), 2600);
+  }
+
+  // Signale qu'un joker vient de agir : ligne de journal (sauf effet répété), bulle et éclat sur son emplacement
+  function declencher(id, texte, silencieux) {
+    const j = JOKERS_PAR_ID[id];
+    if (!silencieux) log(j.icone + " " + j.nom + " : " + texte);
+    toast(j.icone + " " + j.nom + " : " + texte);
+    G.flash = id;
+    setTimeout(() => {
+      if (G && G.flash === id) G.flash = null;
+    }, 1400);
   }
 
   // ---- Économie : offres de cartes, achats, retraits ----
   const copies = (id) => G.deck.filter((c) => c.id === id).length;
   const prixCarte = (tpl) => (tpl.kind === "pass" ? PRIX_CARTE_COURANTE : PRIX_CARTE_SPECIALE);
   const prixRetrait = () => PRIX_RETRAIT + 2 * G.retraits;
-  const deckPlein = () => G.deck.length >= PLAFOND_DECK;
+  const deckPlein = () => G.deck.length >= plafondDeck();
 
   // n cartes distinctes du pool (les salles pièges n'y figurent pas). Le hasard vient du flux courant.
   function offrir(n, forcer) {
-    const pool = SALLES.filter((t) => t.kind !== "trap" && copies(t.id) < (t.max || 99)).map((t) => ({ t, w: t.w }));
+    const pool = SALLES.filter((t) => t.kind !== "trap" && copies(t.id) < (t.max || 99)).map((t) => ({ t, w: t.w * (aJoker("sourcier") && t.fx && t.fx.gem ? 2 : 1) }));
     const cartes = [];
     const ajouter = (t) => cartes.push({ id: t.id, theme: (t.doors || []).length ? pick(THEME_IDS) : null });
     if (forcer) {
@@ -587,10 +688,80 @@
     suiteApresPorte();
   }
 
+  // n jokers que le joueur n'a pas encore, tirés selon leur rareté (flux courant)
+  function offrirJokers(n) {
+    const pool = JOKERS.filter((j) => !aJoker(j.id)).map((j) => ({ j, w: RARETES[j.rar].w }));
+    const ids = [];
+    while (ids.length < n && pool.length) {
+      let x = R() * pool.reduce((sum, e) => sum + e.w, 0), i = 0;
+      for (; i < pool.length - 1; i++) {
+        x -= pool[i].w;
+        if (x <= 0) break;
+      }
+      ids.push(pool[i].j.id);
+      pool.splice(i, 1);
+    }
+    return ids;
+  }
+
+  function raisonJoker(j, prix) {
+    if (G.jokers.length >= G.slots) return "Pas d'emplacement";
+    if (G.coins < prix) return "Trop cher";
+    if (j.id === "pacte" && G.deck.length > plafondDeck() - 3) return "Deck trop grand";
+    return "";
+  }
+
+  function acheterJoker(i) {
+    const B = G.boutique;
+    const it = B && B.jokers[i];
+    if (!it) return;
+    const j = JOKERS_PAR_ID[it.id];
+    if (raisonJoker(j, it.prix)) return;
+    G.coins -= it.prix;
+    G.jokers.push(j.id);
+    B.jokers.splice(i, 1);
+    if (j.id === "sablier2") G.steps = Math.max(1, G.steps - 3); // le prix du Sablier fêlé
+    log("Joker acheté : " + j.icone + " " + j.nom + " (−" + it.prix + " pièces).");
+    son("tampon");
+    modaleBoutique();
+    render();
+  }
+
+  function raisonVente(j) {
+    if (j.id === "sacoche" && G.deck.length > plafondDeck() - 3) return "Deck trop grand";
+    return "";
+  }
+
+  function vendreJoker(id) {
+    const j = JOKERS_PAR_ID[id];
+    if (!G.jokers.includes(id) || raisonVente(j)) return;
+    const gain = Math.floor(prixJoker(j) / 2);
+    G.jokers.splice(G.jokers.indexOf(id), 1);
+    G.coins += gain;
+    log("Joker vendu : " + j.icone + " " + j.nom + " (+" + gain + " pièces).");
+    son("rature");
+    modaleBoutique();
+    render();
+  }
+
+  const prixEmplacement = () => PRIX_EMPLACEMENT[G.slots] || 0;
+
+  function acheterEmplacement() {
+    const prix = prixEmplacement();
+    if (!prix || G.coins < prix || G.slots >= EMPLACEMENTS_MAX) return;
+    G.coins -= prix;
+    G.slots += 1;
+    log("Un emplacement de joker en plus (−" + prix + " pièces) : " + G.slots + " en tout.");
+    son("punaise");
+    modaleBoutique();
+    render();
+  }
+
   function ouvrirBoutique(type) {
     G.boutique = avecFlux("boutique:" + G.rooms, () => ({
       type,
       stock: offrir(type === "carte" ? 4 : 2).map((card) => ({ card, prix: prixCarte(SALLES_PAR_ID[card.id]) })),
+      jokers: offrirJokers(2).map((id) => ({ id, prix: prixJoker(JOKERS_PAR_ID[id]) })),
     }));
     log(type === "carte" ? "Vous entrez dans la Boutique." : "Un marchand des Gardiens vous attendait dans cette salle.");
     modaleBoutique();
@@ -625,7 +796,9 @@
   }
 
   function defausserMain(cands) {
-    cands.forEach((cd) => G.defausse.push(cd.card));
+    cands.forEach((cd) => {
+      if (!cd.card.temp) G.defausse.push(cd.card); // une carte temporaire disparaît après usage
+    });
   }
 
   // ------------------------------------------------------------------
@@ -657,7 +830,13 @@
   function deplacer(d) {
     const r2 = G.pos.r + DIRS[d].dr, c2 = G.pos.c + DIRS[d].dc;
     const room = G.grid[r2][c2];
-    G.steps -= 1;
+    let cout = 1;
+    const depart = G.grid[G.pos.r][G.pos.c];
+    if (aJoker("sentier") && depart.theme && depart.theme === room.theme && avecFlux("sentier:" + G.moves, () => R() < 0.5)) {
+      cout = 0;
+      declencher("sentier", "ce pas ne coûte rien");
+    }
+    G.steps -= cout;
     G.moves += 1;
     G.pos = { r: r2, c: c2 };
     son("page");
@@ -682,12 +861,15 @@
     const fx = room.tpl.fx;
     if (!fx) return;
     const morceaux = [];
+    const mult = aJoker("alambic") && room.tpl.kind === "bonus" ? 2 : 1;
+    if (mult === 2 && (fx.steps > 0 || fx.dice || fx.seals)) declencher("alambic", "les effets de la salle sont doublés", true);
     if (fx.steps) {
-      G.steps = Math.max(0, G.steps + fx.steps);
-      morceaux.push((fx.steps > 0 ? "+" : "−") + Math.abs(fx.steps) + " pas");
+      const st = fx.steps > 0 ? fx.steps * mult : fx.steps;
+      G.steps = Math.max(0, G.steps + st);
+      morceaux.push((st > 0 ? "+" : "−") + Math.abs(st) + " pas");
     }
-    if (fx.dice) { G.dice += fx.dice; morceaux.push("+" + fx.dice + " dé"); }
-    if (fx.seals) { G.seals += fx.seals; morceaux.push("+" + fx.seals + " sceau"); }
+    if (fx.dice) { G.dice += fx.dice * mult; morceaux.push("+" + fx.dice * mult + " dé" + (fx.dice * mult > 1 ? "s" : "")); }
+    if (fx.seals) { G.seals += fx.seals * mult; morceaux.push("+" + fx.seals * mult + " sceau" + (fx.seals * mult > 1 ? "x" : "")); }
     if (fx.time) { G.timeBonus += fx.time; morceaux.push("+" + fx.time + " s par énigme"); }
     if (fx.gem) {
       G.gems.push({ axe: fx.gem.axe, max: fx.gem.max });
@@ -716,6 +898,16 @@
     G.grid[D.tr][D.tc] = { tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme, card: cand.card };
     defausserMain(D.cands); // les trois cartes tirées vont à la défausse
     G.rooms += 1;
+    if (aJoker("craie") && cand.theme) {
+      const memeCouleur = [0, 1, 2, 3].some((k) => {
+        const v = inGrid(D.tr + DIRS[k].dr, D.tc + DIRS[k].dc) ? G.grid[D.tr + DIRS[k].dr][D.tc + DIRS[k].dc] : null;
+        return v && v.theme === cand.theme;
+      });
+      if (memeCouleur) {
+        G.coins += 1;
+        declencher("craie", "+1 pièce, une salle de même couleur est voisine");
+      }
+    }
     if ((G.rooms - 1) % SALLES_MARCHAND === 0) G.grid[D.tr][D.tc].marchand = true;
     porteDe(G.grid[G.pos.r][G.pos.c], G.pos.r, G.pos.c, D.d).status = "open";
     log("Porte " + (D.d === 0 || D.d === 2 ? "du " : "de l'") + DIRS[D.d].nom + " : vous choisissez « " + cand.tpl.nom + " ».");
@@ -735,11 +927,16 @@
     render();
   }
 
-  // Sur petit écran, on amène la case visée au-dessus du tirage
+  // Sur petit écran, on amène la case visée au milieu de l'espace libre au-dessus du tirage
   function defilerVersCible() {
     if (!G || !G.draft || !window.matchMedia("(max-width: 860px)").matches) return;
     const el = document.querySelector('[data-cell="' + G.draft.tr + "," + G.draft.tc + '"]');
-    if (el && el.scrollIntoView) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const panneau = document.querySelector(".tirage-panel");
+    if (!el || !panneau) return;
+    const c = el.getBoundingClientRect(), p = panneau.getBoundingClientRect();
+    const haut = 64; // barre d'état collée en haut
+    const delta = (c.top + c.bottom) / 2 - (haut + p.top) / 2;
+    if (Math.abs(delta) > 4) window.scrollBy({ top: delta, behavior: "smooth" });
   }
 
   function relancer() {
@@ -796,8 +993,12 @@
   // ------------------------------------------------------------------
   function demarrerEnigme() {
     const P = G.pending;
-    const p = avecFlux("enigme:" + P.r + "," + P.c + "," + P.d, () => makePuzzle(P.level, P.theme));
-    const total = (TEMPS_BASE[P.level] || 35) + G.timeBonus;
+    const porte = G.grid[P.r][P.c].door[P.d];
+    const p = avecFlux("enigme:" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => makePuzzle(P.level, P.theme));
+    porte.essais = (porte.essais || 0) + 1; // une porte retentée pose une autre énigme
+    if (aJoker("loupe")) declencher("loupe", "+5 secondes", true);
+    if (aJoker("sablier2")) declencher("sablier2", "+10 secondes", true);
+    const total = tempsPorte(P.level);
     pz = { puzzle: p, restant: total, total, fini: false };
     modaleEnigme();
     arreterChrono();
@@ -837,16 +1038,26 @@
       D.status = "open";
       const base = GAIN_PORTE[P.level] || 0;
       const rapide = base && pz.restant > pz.total / 2 ? 1 : 0;
-      pz.gain = base + rapide;
+      const extra = base ? (aJoker("piece") ? 1 : 0) + (aJoker("pacte") ? 1 : 0) : 0;
+      if (base && aJoker("piece")) declencher("piece", "+1 pièce", true);
+      if (base && aJoker("pacte")) declencher("pacte", "+1 pièce", true);
+      pz.gain = base + rapide + extra;
       pz.rapide = rapide;
+      pz.extra = extra;
       G.coins += pz.gain;
       P.recompense = calculerRecompense(P);
       log("Énigme résolue (" + p.label.toLowerCase() + ")" + (pz.gain ? " : +" + pz.gain + " pièce" + (pz.gain > 1 ? "s" : "") : "") + ".");
       son("deblocage");
     } else {
       G.failed += 1;
-      D.status = "blocked";
-      log("Énigme ratée (" + p.label.toLowerCase() + ") : la porte est condamnée pour cette partie.");
+      if (aJoker("souffle") && !G.souffle) {
+        G.souffle = true;
+        pz.sauvee = true; // la porte reste verrouillée : on pourra la retenter
+        declencher("souffle", "la porte n'est pas condamnée");
+      } else {
+        D.status = "blocked";
+        log("Énigme ratée (" + p.label.toLowerCase() + ") : la porte est condamnée pour cette partie.");
+      }
       son("rature");
     }
     modaleResultat(ok, message);
@@ -1046,9 +1257,10 @@
   // Gemmes : décaler une ligne (H) ou une colonne (V)
   // ------------------------------------------------------------------
   function ligneOk(axe, i) {
+    const poing = aJoker("poing"); // le Poing des Gardiens permet de décaler sa propre ligne
     if (axe === "H") {
-      if (i === G.pos.r || i === START.r || i === GOAL.r) return false;
-    } else if (i === G.pos.c || i === START.c || i === GOAL.c) return false;
+      if ((i === G.pos.r && !poing) || i === START.r || i === GOAL.r) return false;
+    } else if ((i === G.pos.c && !poing) || i === START.c || i === GOAL.c) return false;
     const n = axe === "H" ? COLS : ROWS;
     for (let j = 0; j < n; j++) if (axe === "H" ? G.grid[i][j] : G.grid[j][i]) return true;
     return false;
@@ -1066,7 +1278,7 @@
     const S = G.shift;
     if (!S || S.sel === null) return;
     const gem = G.gems[S.gi];
-    if (!gem || Math.abs(k) > gem.max || !ligneOk(gem.axe, S.sel)) return;
+    if (!gem || !crans(gem).includes(Math.abs(k)) || !ligneOk(gem.axe, S.sel)) return;
     const H = gem.axe === "H", i = S.sel, n = H ? COLS : ROWS;
     const anciens = [];
     for (let j = 0; j < n; j++) anciens.push(H ? G.grid[i][j] : G.grid[j][i]);
@@ -1076,6 +1288,10 @@
       // Les passages déjà ouverts sont recalculés d'après le nouveau voisinage
       if (salle && salle.door) for (const d in salle.door) if (salle.door[d].status === "open") delete salle.door[d];
     });
+    // Poing des Gardiens : le joueur est entraîné avec sa salle
+    if (H ? G.pos.r === i : G.pos.c === i) {
+      G.pos = H ? { r: i, c: (((G.pos.c + k) % n) + n) % n } : { r: (((G.pos.r + k) % n) + n) % n, c: i };
+    }
     for (let j = 0; j < n; j++) {
       if (H) G.grid[i][j] = nouveaux[j];
       else G.grid[j][i] = nouveaux[j];
@@ -1111,7 +1327,7 @@
     else {
       h += `${mot} ${S.sel + 1}, décaler :</span>`;
       const a = H ? "◀" : "▲", b = H ? "▶" : "▼";
-      for (let k = 1; k <= g.max; k++) {
+      for (const k of crans(g)) {
         h += `<button class="btn mini-btn" data-act="shift-do" data-k="${-k}">${a.repeat(k)} ${k}</button><button class="btn mini-btn" data-act="shift-do" data-k="${k}">${k} ${b.repeat(k)}</button>`;
       }
     }
@@ -1131,12 +1347,13 @@
       <div class="hud-items">
         <span class="chip" title="Dés : relancer un tirage de trois salles">🎲 <b>${G.dice}</b> <em>dé${G.dice > 1 ? "s" : ""}</em></span>
         <span class="chip" title="Sceaux : ouvrent une porte sans énigme">🗝 <b>${G.seals}</b> <em>sceau${G.seals > 1 ? "x" : ""}</em></span>
-        <span class="chip" title="Temps bonus sur chaque énigme">⏳ <b>+${G.timeBonus}</b> <em>s</em></span>
+        <span class="chip" title="Temps bonus sur chaque énigme">⏳ <b>+${bonusTemps()}</b> <em>s</em></span>
       </div>
       <div class="hud-items">${gemmesHTML()}</div>
       <div class="hud-items">${deckChip()}<button class="chip" data-act="copier" title="Copier la graine pour rejouer ou partager cette partie">🌱 <b>${esc(G.seed)}</b></button></div>
     </div>
     ${G.draft ? tirageHTML() : ""}
+    ${jokersHTML()}
     <section class="carte">
       <h3>Vous êtes ici</h3>
       <p class="salle-nom">${esc(room.tpl.nom)}</p>
@@ -1187,16 +1404,42 @@
       </main>`;
   }
 
+  function jokersHTML() {
+    const cases = [];
+    for (let i = 0; i < G.slots; i++) {
+      const id = G.jokers[i];
+      if (!id) {
+        cases.push(`<span class="joker vide">emplacement libre</span>`);
+        continue;
+      }
+      const j = JOKERS_PAR_ID[id];
+      cases.push(`<button class="joker${j.maudit ? " maudit" : ""}${G.flash === id ? " decl" : ""}" style="--r:${RARETES[j.rar].couleur}" data-act="joker" data-id="${id}">
+        <span class="j-ico">${j.icone}</span><span class="j-nom">${esc(j.nom)}</span><span class="j-desc">${esc(j.desc)}</span></button>`);
+    }
+    return `<section class="carte jokers"><h3>Jokers <span class="compte">${G.jokers.length}/${G.slots}</span></h3><div class="joker-liste">${cases.join("")}</div></section>`;
+  }
+
+  function modaleJoker(id) {
+    const j = JOKERS_PAR_ID[id];
+    afficherModale(`
+      <p class="modal-sur">Joker · ${esc(j.famille)}</p>
+      <h2>${j.icone} ${esc(j.nom)}</h2>
+      <p><span class="theme-tag" style="--t:${RARETES[j.rar].couleur}">${RARETES[j.rar].nom}</span>${j.maudit ? ` <span class="theme-tag" style="--t:#9A2B25">Malédiction : ${esc(j.prix)}</span>` : ""}</p>
+      <p>${esc(j.desc)}</p>
+      <p class="note-deck">Vendre : dans une boutique, pour ${Math.floor(prixJoker(j) / 2)} pièces.</p>
+      <div class="boutons"><button class="btn principal" data-act="close">Fermer</button></div>`, "joker-modal");
+  }
+
   function deckChip() {
-    const enMain = G.draft ? G.draft.cands.length : 0;
-    return `<span class="chip" title="Pièces">🪙 <b>${G.coins}</b></span><button class="chip deck-btn" data-act="deck" title="Voir le deck">🃏 <b>${G.deck.length}/${PLAFOND_DECK}</b> <em>pioche ${G.pioche.length} · défausse ${G.defausse.length}${enMain ? " · main " + enMain : ""}</em></button>`;
+    const enMain = G.draft ? G.draft.cands.filter((c) => !c.card.temp).length : 0;
+    return `<span class="chip" title="Pièces">🪙 <b>${G.coins}</b></span><button class="chip deck-btn" data-act="deck" title="Voir le deck">🃏 <b>${G.deck.length}/${plafondDeck()}</b> <em>pioche ${G.pioche.length} · défausse ${G.defausse.length}${enMain ? " · main " + enMain : ""}</em></button>`;
   }
 
   function hudMobile() {
     const bas = G.steps <= 10;
     return `<span class="hm-steps${bas ? " bas" : ""}"><b>${G.steps}</b> pas</span>
-      <span class="chip">🎲 <b>${G.dice}</b></span><span class="chip">🗝 <b>${G.seals}</b></span><span class="chip">⏳ <b>+${G.timeBonus}</b></span>
-      <span class="chip">📜 <b>${G.fragments}/${FRAGMENTS.length}</b></span>${deckChip()}${G.gems.length ? gemmesHTML() : ""}`;
+      <span class="chip">🎲 <b>${G.dice}</b></span><span class="chip">🗝 <b>${G.seals}</b></span><span class="chip">⏳ <b>+${bonusTemps()}</b></span>
+      <span class="chip">📜 <b>${G.fragments}/${FRAGMENTS.length}</b></span>${deckChip()}${G.gems.length ? gemmesHTML() : ""}${G.jokers.map((id) => `<button class="chip joker-chip" data-act="joker" data-id="${id}" title="${esc(JOKERS_PAR_ID[id].nom)}">${JOKERS_PAR_ID[id].icone}</button>`).join("")}`;
   }
 
   function menuHTML() {
@@ -1244,14 +1487,14 @@
   function modalePorte() {
     const P = G.pending;
     const d = DIRS[P.d];
-    const temps = (TEMPS_BASE[P.level] || 35) + G.timeBonus;
+    const temps = tempsPorte(P.level);
     const pips = "●".repeat(P.level) + "○".repeat(3 - P.level);
     const T = THEMES[P.theme];
     afficherModale(`
       <p class="modal-sur">Porte du ${d.nom} ${d.fleche}</p>
       <h2>Une serrure sans clé</h2>
       <p class="niveau"><span class="theme-tag" style="--t:${T.couleur}">${T.glyphe} ${T.nom}</span> Difficulté <span class="pips">${pips}</span></p>
-      <p>Une seule tentative, ${temps} secondes. Si vous échouez, la porte est condamnée pour toute la partie.</p>
+      <p>Une seule tentative, ${temps} secondes. Si vous échouez, la porte est condamnée pour toute la partie.${aJoker("souffle") && !G.souffle ? " 💨 Second souffle : ce premier échec ne condamnera pas la porte." : ""}</p>
       <div class="boutons">
         <button class="btn principal" data-act="try">Tenter l'énigme</button>
         ${G.seals > 0 ? `<button class="btn" data-act="seal">Utiliser un sceau (${G.seals})</button>` : ""}
@@ -1297,13 +1540,14 @@
     const p = pz.puzzle;
     const bonne = p.kind === "num" ? String(p.answer) : p.answer;
     const cible = G.grid[G.pending.r + DIRS[G.pending.d].dr][G.pending.c + DIRS[G.pending.d].dc];
-    const gain = ok && pz.gain ? `<p class="gain">+${pz.gain} pièce${pz.gain > 1 ? "s" : ""}${pz.rapide ? " (dont 1 pour la rapidité)" : ""}</p>` : "";
+    const detail = [pz.rapide ? "1 pour la rapidité" : "", pz.extra ? pz.extra + " grâce à vos jokers" : ""].filter(Boolean).join(", ");
+    const gain = ok && pz.gain ? `<p class="gain">+${pz.gain} pièce${pz.gain > 1 ? "s" : ""}${detail ? " (dont " + detail + ")" : ""}</p>` : "";
     const suite = cible ? "Franchir la porte" : G.pending.recompense ? "Voir la récompense" : "Choisir une salle";
     afficherModale(`
       <p class="modal-sur">${ok ? "Réussi" : "Raté"}</p>
       <h2 class="${ok ? "ok" : "ko"}">${esc(message)}</h2>
       ${gain}
-      ${ok ? "" : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p><p>La porte est condamnée pour cette partie.</p>`}
+      ${ok ? "" : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p><p>${pz.sauvee ? "💨 <b>Second souffle</b> : la porte n'est pas condamnée. Vous pourrez la retenter, avec une autre énigme." : "La porte est condamnée pour cette partie."}</p>`}
       <div class="boutons"><button class="btn principal" data-act="after">${ok ? suite : "Continuer"}</button></div>`, (ok ? "reussi" : "rate") + " sans-echap");
     const b = document.querySelector('[data-act="after"]');
     if (b) b.focus();
@@ -1317,7 +1561,7 @@
         const sel = D.sel === i;
         return `<button class="carte-salle ${cd.tpl.kind}${sel ? " sel" : ""}" data-act="apercu" data-i="${i}" aria-pressed="${sel}">
           <span class="mini">${salleSVG(cd.tpl, cotes, { entree: opp(D.d), theme: cd.theme })}</span>
-          <span class="cs-nom">${esc(cd.tpl.nom)}</span>
+          <span class="cs-nom">${esc(cd.tpl.nom)}${cd.card.temp ? ` <span class="temp-tag">🗝 temporaire</span>` : ""}</span>
           <span class="cs-desc">${esc(cd.tpl.desc)}</span>
           <span class="cs-fx">${esc(effetTexte(cd.tpl.fx))}</span>
           <span class="cs-portes">${cd.sorties === 0 ? "Cul-de-sac" : cd.sorties + " sortie" + (cd.sorties > 1 ? "s" : "")}</span>
@@ -1328,7 +1572,7 @@
     return `<section class="tirage-panel" aria-label="Choix de la salle">
       <h3>Porte du ${DIRS[D.d].nom} ${DIRS[D.d].fleche} : quelle salle ?</h3>
       <p class="tirage-aide">${D.sel === null ? "Touchez une salle pour la voir sur le plan, à l'emplacement marqué ?" : "Aperçu sur le plan. Touchez « Choisir » (ou la salle) pour la poser."}</p>
-      <div class="tirage">${cartes}</div>
+      <div class="tirage n${D.cands.length}">${cartes}</div>
       <div class="boutons">
         <button class="btn principal" data-act="pick"${D.sel === null ? " disabled" : ""}>Choisir cette salle</button>
         <button class="btn" data-act="reroll"${G.dice < 1 ? " disabled" : ""}>🎲 Relancer (${G.dice})</button>
@@ -1396,9 +1640,45 @@
     afficherModale(`
       <p class="modal-sur">Récompense</p>
       <h2>Une carte pour votre deck</h2>
-      <p class="note-deck">Choisissez-en une : elle rejoint la défausse et reviendra dans vos tirages. Deck : ${G.deck.length}/${PLAFOND_DECK}.${plein ? " <b>Deck plein</b> : retirez une carte dans une boutique pour faire de la place." : ""}</p>
+      <p class="note-deck">Choisissez-en une : elle rejoint la défausse et reviendra dans vos tirages. Deck : ${G.deck.length}/${plafondDeck()}.${plein ? " <b>Deck plein</b> : retirez une carte dans une boutique pour faire de la place." : ""}</p>
       <div class="tirage">${cartes}</div>
       <div class="boutons"><button class="btn${plein ? " principal" : " lien"}" data-act="recomp-passer">${plein ? "Continuer" : "Passer"}</button></div>`, "recompense-modal sans-echap");
+  }
+
+  function jokerLigne(j, action) {
+    return `<li class="offre offre-joker ${j.maudit ? "maudit" : ""}">
+      <span class="j-ico">${j.icone}</span>
+      <span class="offre-txt"><span class="cs-nom">${esc(j.nom)}</span> <span class="theme-tag" style="--t:${RARETES[j.rar].couleur}">${RARETES[j.rar].nom}</span>${j.maudit ? ` <span class="theme-tag" style="--t:#9A2B25">Malédiction</span>` : ""}<br>
+        <span class="cs-desc">${esc(j.desc)}</span><br><span class="cs-portes">${esc(j.famille)}</span></span>
+      ${action}
+    </li>`;
+  }
+
+  function jokersBoutiqueHTML() {
+    const B = G.boutique;
+    const vente = B.jokers.length
+      ? B.jokers
+          .map((it, i) => {
+            const j = JOKERS_PAR_ID[it.id];
+            const raison = raisonJoker(j, it.prix);
+            return jokerLigne(j, `<button class="btn achat" data-act="acheter-joker" data-i="${i}"${raison ? " disabled" : ""}>${raison || "Acheter"}<br><b>${it.prix} 🪙</b></button>`);
+          })
+          .join("")
+      : `<li class="vide">Plus de jokers en vente.</li>`;
+    const miens = G.jokers
+      .map((id) => {
+        const j = JOKERS_PAR_ID[id];
+        const raison = raisonVente(j);
+        return jokerLigne(j, `<button class="btn achat" data-act="vendre-joker" data-id="${id}"${raison ? " disabled" : ""}>${raison || "Vendre"}<br><b>+${Math.floor(prixJoker(j) / 2)} 🪙</b></button>`);
+      })
+      .join("");
+    const pe = prixEmplacement();
+    const slot = pe
+      ? `<li class="offre-slot"><span>Un emplacement de joker de plus (${G.slots} → ${G.slots + 1})</span><button class="btn mini-btn" data-act="acheter-slot"${G.coins < pe ? " disabled" : ""}>${G.coins < pe ? "Trop cher" : "Acheter"} · ${pe} 🪙</button></li>`
+      : "";
+    return `<h3 class="sous-titre">Jokers en vente <span class="compte">${G.jokers.length}/${G.slots} emplacements</span></h3>
+      <ul class="boutique-liste">${vente}${slot}</ul>
+      ${G.jokers.length ? `<h3 class="sous-titre">Vos jokers (revente à moitié prix)</h3><ul class="boutique-liste">${miens}</ul>` : ""}`;
   }
 
   function modaleBoutique() {
@@ -1433,8 +1713,9 @@
     afficherModale(`
       <p class="modal-sur">${B.type === "carte" ? "Boutique" : "Marchand de passage"}</p>
       <h2>Vos pièces : ${G.coins} 🪙</h2>
-      <p class="note-deck">Deck : ${G.deck.length}/${PLAFOND_DECK}${plein ? " (plein)" : ""}. Une carte achetée rejoint la défausse.</p>
+      <p class="note-deck">Deck : ${G.deck.length}/${plafondDeck()}${plein ? " (plein)" : ""}. Une carte achetée rejoint la défausse.</p>
       <ul class="boutique-liste">${stock}</ul>
+      ${jokersBoutiqueHTML()}
       <details class="retrait">
         <summary>Retirer une carte du deck (${prix} 🪙, puis +2 à chaque retrait)</summary>
         <ul class="retrait-liste">${retrait}</ul>
@@ -1468,7 +1749,7 @@
       .join("");
     afficherModale(`
       <p class="modal-sur">Votre deck</p>
-      <h2>${G.deck.length} cartes sur ${PLAFOND_DECK}</h2>
+      <h2>${G.deck.length} cartes sur ${plafondDeck()}</h2>
       <p class="note-deck">Pioche ${G.pioche.length} · défausse ${G.defausse.length}${enMain.size ? " · main " + enMain.size : ""}. À chaque porte, vous tirez 3 cartes de la pioche, en jouez une, et les trois vont à la défausse. Quand la pioche a moins de 3 cartes, on y remélange la défausse.</p>
       <ul class="deck-liste">${lignes}</ul>
       <div class="boutons"><button class="btn principal" data-act="close">Fermer</button></div>`, "deck-modal");
@@ -1487,6 +1768,7 @@
         <li><b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.</li>
         <li><b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.</li>
         <li><b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.</li>
+        <li><b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi, gemmes plus puissantes... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.</li>
         <li><b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.</li>
         <li><b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le Vestibule, la Chambre et la ligne et la colonne où vous vous trouvez ne bougent pas. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.</li>
         <li><b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.</li>
@@ -1515,6 +1797,18 @@
       }
       case "deck":
         if (G && modaleLibre()) modaleDeck();
+        break;
+      case "joker":
+        if (G && modaleLibre()) modaleJoker(el.getAttribute("data-id"));
+        break;
+      case "acheter-joker":
+        acheterJoker(parseInt(el.getAttribute("data-i"), 10));
+        break;
+      case "vendre-joker":
+        vendreJoker(el.getAttribute("data-id"));
+        break;
+      case "acheter-slot":
+        acheterEmplacement();
         break;
       case "recomp":
         choisirRecompense(parseInt(el.getAttribute("data-i"), 10));
@@ -1649,7 +1943,7 @@
         if (G) G.pending = null;
         fermerModale();
       } else if (pz && !pz.fini && pz.puzzle.kind === "mcq" && /^[1-4]$/.test(ev.key) && parseInt(ev.key, 10) <= pz.puzzle.options.length) repondre(pz.puzzle.options[parseInt(ev.key, 10) - 1]);
-      else if (G && G.draft && /^[1-3]$/.test(ev.key)) apercu(parseInt(ev.key, 10) - 1);
+      else if (G && G.draft && /^[1-4]$/.test(ev.key)) apercu(parseInt(ev.key, 10) - 1);
       else if (G && G.draft && ev.key === "Enter" && G.draft.sel !== null) choisir(G.draft.sel);
       return;
     }
@@ -1671,5 +1965,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

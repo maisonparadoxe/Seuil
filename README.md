@@ -23,4 +23,6 @@ Chaque partie a une **graine** (six lettres). Avec la même graine, la partie es
 
 Une énigme résolue rapporte des pièces, et les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand toutes les 10 salles posées, permet d'acheter des cartes et d'en retirer. Le deck est limité à 15 cartes.
 
+Les **jokers** sont des règles passives (temps en plus, pièces en plus, tirage élargi, gemmes plus puissantes...). On a 3 emplacements au départ, jusqu'à 5. On les achète en boutique et on les revend à moitié prix ; les jokers « malédiction » sont puissants mais ont un prix.
+
 La conception complète est dans `CONCEPTION.md`.
