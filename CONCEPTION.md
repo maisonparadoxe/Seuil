@@ -145,6 +145,12 @@ Chaque étape se teste seule. La première change le plus le jeu et se joue déj
 5. **Les niveaux.** Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages.
 6. **La progression entre parties.** Cartes et jokers débloqués, joker fétiche, écran des graines, défi du jour.
 
+## 5 bis. Avancement
+
+- **Étape 1 : le moteur du deck, fait.** Générateur de hasard à graine (flux séparés par porte, énigme, pioche et orientation des salles), deck de départ de 8 cartes à couleur fixe, cycle pioche, défausse et remélange, dés qui défaussent et retirent 3 cartes, fenêtre « Deck », graine affichée et copiable, saisie d'une graine et défi du jour dans le menu.
+  - Vérifié par des parties automatiques : même graine, même partie ; graines différentes, parties différentes ; aucun appel au hasard du navigateur pendant une partie ; le deck conserve toujours ses 8 cartes, réparties entre pioche, défausse et main.
+  - **Limite actuelle :** le deck ne contient que les 8 cartes de départ, puisque les récompenses et la Boutique arrivent à l'étape 2. Les autres salles du jeu (gemmes, fragments du carnet, pièges) ne sortent donc plus pour l'instant.
+
 ## 6. Risques à surveiller
 
 - **Le volume de contenu.** Il faudra au moins 25 à 30 cartes et une dizaine de plans pour que les parties diffèrent vraiment. On part des 20 salles actuelles et on enrichit au fil des tests.

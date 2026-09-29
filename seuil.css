@@ -326,3 +326,22 @@ body.menu-mode #app { max-width: none; padding: 0; }
   .tirage-panel .btn { flex: 1; font-size: 14px; padding: 8px 6px; min-height: 42px; }
   body.tirage-ouvert #app { padding-bottom: 54vh; }
 }
+
+/* ---------- Deck et graine ---------- */
+.deck-btn { cursor: pointer; background: #E3D7B4; }
+.deck-btn:hover { border-color: var(--stamp-red); }
+.deck-btn em { font-size: 10.5px; }
+.modal.deck-modal .modal-boite { max-width: 560px; }
+.note-deck { font-size: 13px; color: var(--ink-soft); }
+.deck-liste { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 6px; }
+.deck-ligne { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; padding: 7px 9px; background: var(--paper-dark); border: 1px solid var(--ink); border-radius: 3px; }
+.deck-nom { font-family: var(--font-display); font-size: 16px; }
+.deck-detail { grid-column: 1 / 2; font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
+.deck-ligne .theme-tag { justify-self: end; margin: 0; }
+.deck-statut { grid-column: 2 / 3; justify-self: end; font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.deck-statut.pi { color: var(--steel); }
+.deck-statut.ma { color: var(--stamp-red); }
+.deck-statut.de { color: var(--muted); }
+.menu-graine { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #C9BE9F; }
+.menu-graine input { font-family: var(--font-mono); font-size: 16px; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 10px; background: rgba(243, 235, 214, 0.92); border: 2px solid #4a4133; border-radius: 3px; color: var(--ink); }
+.menu-graine input:focus { outline: 3px solid var(--gold); }

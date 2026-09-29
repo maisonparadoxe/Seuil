@@ -24,16 +24,74 @@
   ];
   const opp = (d) => (d + 2) % 4;
   const inGrid = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
-  const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  // ------------------------------------------------------------------
+  // Hasard à graine. Tout l'aléatoire d'une partie passe par R, qui est
+  // toujours un flux dérivé de la graine et d'un nom (porte, pioche, énigme...).
+  // Deux joueurs qui ont la même graine voient donc la même partie, même s'ils
+  // ne font pas les mêmes choix : chaque flux ne dépend que de son nom.
+  // ------------------------------------------------------------------
+  let R = Math.random;
+  const rnd = (a, b) => a + Math.floor(R() * (b - a + 1));
+  const pick = (a) => a[Math.floor(R() * a.length)];
   const shuffle = (a) => {
     const t = a.slice();
     for (let i = t.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(R() * (i + 1));
       [t[i], t[j]] = [t[j], t[i]];
     }
     return t;
   };
+
+  function hachage(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  function mulberry32(a) {
+    return function () {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function avecFlux(nom, fn) {
+    const prec = R;
+    R = mulberry32(hachage(G.seed + "|" + nom));
+    try {
+      return fn();
+    } finally {
+      R = prec;
+    }
+  }
+
+  const ALPHABET_GRAINE = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  function graineAleatoire() {
+    let out = "";
+    let oct = null;
+    try {
+      oct = crypto.getRandomValues(new Uint8Array(6));
+    } catch (e) {}
+    for (let i = 0; i < 6; i++) {
+      const v = oct ? oct[i] : Math.floor(Math.random() * 256);
+      out += ALPHABET_GRAINE[v % ALPHABET_GRAINE.length];
+    }
+    return out;
+  }
+  function normaliserGraine(t) {
+    return String(t || "").trim().toUpperCase().replace(/\s+/g, "-").slice(0, 24);
+  }
+  function graineDuJour() {
+    const d = new Date();
+    const z = (n) => (n < 10 ? "0" : "") + n;
+    return "JOUR-" + d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
+  }
+
   const esc = (s) =>
     String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
@@ -90,6 +148,20 @@
     { id: "cabinet", nom: "Cabinet du serrurier", court: "Cabinet", doors: ["F"], w: 2, max: 1, kind: "bonus", fx: { fragment: 1, steps: 3 }, desc: "Un bureau encombré de pênes et de ressorts. Quelqu'un a travaillé ici." },
     { id: "lames", nom: "Salle des lames", court: "Lames", doors: ["F", "L"], mirror: true, w: 3, max: 2, kind: "trap", fx: { steps: -5 }, desc: "Des lames sortent du mur au moindre pas. Vous vous en tirez, mais pas gratuitement." },
     { id: "eboulis", nom: "Éboulement", court: "Éboulis", doors: ["F"], w: 3, max: 2, kind: "trap", fx: { steps: -3 }, desc: "La voûte a cédé. Il faut contourner les gravats." },
+  ];
+  const SALLES_PAR_ID = {};
+  SALLES.forEach((t) => (SALLES_PAR_ID[t.id] = t));
+  const PLAFOND_DECK = 15;
+  // Deck de départ : [salle, thème]. La couleur d'une carte est fixe.
+  const DECK_DEPART = [
+    ["galerie", "chiffres"],
+    ["galerie", "mots"],
+    ["coude", "logique"],
+    ["coude", "symboles"],
+    ["fourche", "chiffres"],
+    ["te", "mots"],
+    ["refectoire", "logique"],
+    ["cellier", null],
   ];
   const HALL = { id: "hall", nom: "Vestibule", court: "Vestibule", kind: "start", desc: "Un vestibule glacé. Sur le linteau, une salamandre et ces mots : NUTRISCO ET EXTINGUO." };
   const CHAMBRE = { id: "chambre", nom: "Chambre des Gardiens", court: "Chambre", kind: "goal", desc: "Le cœur du labyrinthe." };
@@ -163,7 +235,7 @@
         const s = rnd(1, 20), k = rnd(2, 9);
         for (let i = 0; i < 6; i++) t.push(s + k * i);
       } else if (l === 2) {
-        if (Math.random() < 0.5) {
+        if (R() < 0.5) {
           const s = rnd(1, 5), q = pick([2, 3]);
           for (let i = 0; i < 6; i++) t.push(s * Math.pow(q, i));
         } else {
@@ -299,8 +371,15 @@
     } catch (e) {}
   }
 
-  function nouvellePartie() {
+  function nouvellePartie(graine) {
+    const seed = normaliserGraine(graine) || graineAleatoire();
     G = {
+      seed,
+      deck: [],
+      pioche: [],
+      defausse: [],
+      melanges: 0,
+      tirages: 0,
       steps: START_STEPS,
       dice: 1,
       seals: 1,
@@ -309,7 +388,6 @@
       pos: { r: START.r, c: START.c },
       gems: [],
       shift: null,
-      count: {},
       fragments: 0,
       log: [],
       moves: 0,
@@ -320,6 +398,8 @@
       pending: null,
       draft: null,
     };
+    G.deck = DECK_DEPART.map((d, i) => ({ uid: i + 1, id: d[0], theme: d[1] }));
+    G.pioche = melanger(G.deck);
     G.grid[START.r][START.c] = { tpl: HALL, doors: [0, 1, 3], visited: true };
     G.grid[GOAL.r][GOAL.c] = { tpl: CHAMBRE, doors: [2], visited: false, goal: true };
     log("Vous entrez dans le vestibule. Quarante-cinq pas, pas un de plus.");
@@ -344,17 +424,19 @@
     const cible = G.grid[r2][c2];
     let D = room.door[d];
     if (!D) {
-      let level, status = "locked";
-      if (cible && cible.goal) level = 3;
-      else {
-        const row = Math.min(r, r2);
-        level = row >= 6 ? 1 : row >= 3 ? 2 : 3;
-        const x = Math.random();
-        if (x < 0.2 && level > 1) level -= 1;
-        else if (x > 0.85 && level < 3) level += 1;
-        if (Math.random() < 0.18) { status = "ajar"; level = 0; }
-      }
-      D = { level, status, theme: room.theme || pick(THEME_IDS) };
+      D = avecFlux("porte:" + r + "," + c + "," + d, () => {
+        let level, status = "locked";
+        if (cible && cible.goal) level = 3;
+        else {
+          const row = Math.min(r, r2);
+          level = row >= 6 ? 1 : row >= 3 ? 2 : 3;
+          const x = R();
+          if (x < 0.2 && level > 1) level -= 1;
+          else if (x > 0.85 && level < 3) level += 1;
+          if (R() < 0.18) { status = "ajar"; level = 0; }
+        }
+        return { level, status, theme: room.theme || pick(THEME_IDS) };
+      });
       room.door[d] = D;
     }
     return D;
@@ -379,8 +461,9 @@
   // ------------------------------------------------------------------
   // Tirage de trois salles
   // ------------------------------------------------------------------
-  function candidat(tpl, d, tr, tc) {
-    const miroir = tpl.mirror && Math.random() < 0.5;
+  function candidat(card, d, tr, tc) {
+    const tpl = SALLES_PAR_ID[card.id];
+    const miroir = tpl.mirror && R() < 0.5;
     const abs = [opp(d)];
     (tpl.doors || []).forEach((x) => {
       let rel = x;
@@ -392,43 +475,32 @@
       if (voisin && !voisin.doors.includes(opp(dd))) return; // mur en face
       abs.push(dd);
     });
-    return { tpl, doors: abs, sorties: abs.length - 1 };
+    const sorties = abs.length - 1;
+    return { card, tpl, doors: abs, sorties, theme: sorties > 0 ? card.theme : null };
   }
 
-  function poids(tpl) {
-    if ((G.count[tpl.id] || 0) >= (tpl.max || 99)) return 0;
-    if (tpl.fx && tpl.fx.fragment && G.fragments >= FRAGMENTS.length) return 0;
-    return tpl.w;
+  // ---- Le cycle du deck : pioche, défausse, remélange ----
+  function melanger(liste) {
+    return avecFlux("pioche:" + G.melanges++, () => shuffle(liste));
   }
 
-  // Chaque salle qui a des sorties reçoit un thème, tous différents.
-  function themer(cands) {
-    const t = shuffle(THEME_IDS);
-    let i = 0;
-    cands.forEach((cd) => (cd.theme = cd.sorties > 0 ? t[i++] : null));
-    return cands;
+  // Quand la pioche a moins de n cartes, on y remélange la défausse.
+  function piocher(n) {
+    if (G.pioche.length < n && G.defausse.length) {
+      G.pioche = melanger(G.pioche.concat(G.defausse));
+      G.defausse = [];
+    }
+    return G.pioche.splice(0, n);
   }
 
   function tirage(d, tr, tc) {
-    for (let essai = 0; essai < 60; essai++) {
-      const pool = SALLES.map((t) => ({ t, w: poids(t) })).filter((x) => x.w > 0);
-      const choisies = [];
-      while (choisies.length < 3 && pool.length) {
-        const total = pool.reduce((s, x) => s + x.w, 0);
-        let x = Math.random() * total, i = 0;
-        for (; i < pool.length - 1; i++) {
-          x -= pool[i].w;
-          if (x <= 0) break;
-        }
-        choisies.push(pool[i].t);
-        pool.splice(i, 1);
-      }
-      const cands = choisies.map((t) => candidat(t, d, tr, tc));
-      const pieges = cands.filter((x) => x.tpl.kind === "trap").length;
-      const avecSortie = cands.filter((x) => x.sorties > 0).length;
-      if (cands.length === 3 && pieges <= 1 && avecSortie >= 2) return themer(cands);
-    }
-    return themer([candidat(SALLES[0], d, tr, tc), candidat(SALLES[1], d, tr, tc), candidat(SALLES[3], d, tr, tc)]);
+    const main = piocher(3);
+    G.tirages += 1;
+    return main.map((card, i) => avecFlux("miroir:" + G.tirages + ":" + i, () => candidat(card, d, tr, tc)));
+  }
+
+  function defausserMain(cands) {
+    cands.forEach((cd) => G.defausse.push(cd.card));
   }
 
   // ------------------------------------------------------------------
@@ -508,8 +580,8 @@
   function choisir(i) {
     const D = G.draft;
     const cand = D.cands[i];
-    G.grid[D.tr][D.tc] = { tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme };
-    G.count[cand.tpl.id] = (G.count[cand.tpl.id] || 0) + 1;
+    G.grid[D.tr][D.tc] = { tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme, card: cand.card };
+    defausserMain(D.cands); // les trois cartes tirées vont à la défausse
     G.rooms += 1;
     porteDe(G.grid[G.pos.r][G.pos.c], G.pos.r, G.pos.c, D.d).status = "open";
     log("Porte " + (D.d === 0 || D.d === 2 ? "du " : "de l'") + DIRS[D.d].nom + " : vous choisissez « " + cand.tpl.nom + " ».");
@@ -540,9 +612,10 @@
     if (G.dice < 1) return;
     G.dice -= 1;
     const D = G.draft;
+    defausserMain(D.cands);
     D.cands = tirage(D.d, D.tr, D.tc);
     D.sel = null;
-    log("Vous jouez un dé : trois nouvelles salles.");
+    log("Vous jouez un dé : trois nouvelles cartes.");
     son("clic");
     render();
   }
@@ -589,7 +662,7 @@
   // ------------------------------------------------------------------
   function demarrerEnigme() {
     const P = G.pending;
-    const p = makePuzzle(P.level, P.theme);
+    const p = avecFlux("enigme:" + P.r + "," + P.c + "," + P.d, () => makePuzzle(P.level, P.theme));
     const total = (TEMPS_BASE[P.level] || 35) + G.timeBonus;
     pz = { puzzle: p, restant: total, total, fini: false };
     modaleEnigme();
@@ -914,6 +987,7 @@
         <span class="chip" title="Temps bonus sur chaque énigme">⏳ <b>+${G.timeBonus}</b> <em>s</em></span>
       </div>
       <div class="hud-items">${gemmesHTML()}</div>
+      <div class="hud-items">${deckChip()}<button class="chip" data-act="copier" title="Copier la graine pour rejouer ou partager cette partie">🌱 <b>${esc(G.seed)}</b></button></div>
     </div>
     ${G.draft ? tirageHTML() : ""}
     <section class="carte">
@@ -966,11 +1040,16 @@
       </main>`;
   }
 
+  function deckChip() {
+    const enMain = G.draft ? G.draft.cands.length : 0;
+    return `<button class="chip deck-btn" data-act="deck" title="Voir le deck">🃏 <b>${G.deck.length}</b> <em>pioche ${G.pioche.length} · défausse ${G.defausse.length}${enMain ? " · main " + enMain : ""}</em></button>`;
+  }
+
   function hudMobile() {
     const bas = G.steps <= 10;
     return `<span class="hm-steps${bas ? " bas" : ""}"><b>${G.steps}</b> pas</span>
       <span class="chip">🎲 <b>${G.dice}</b></span><span class="chip">🗝 <b>${G.seals}</b></span><span class="chip">⏳ <b>+${G.timeBonus}</b></span>
-      <span class="chip">📜 <b>${G.fragments}/${FRAGMENTS.length}</b></span>${G.gems.length ? gemmesHTML() : ""}`;
+      <span class="chip">📜 <b>${G.fragments}/${FRAGMENTS.length}</b></span>${deckChip()}${G.gems.length ? gemmesHTML() : ""}`;
   }
 
   function menuHTML() {
@@ -983,8 +1062,13 @@
         <img class="menu-sal" src="img/salamandre.png" alt="" onerror="this.remove()">
         <h1 class="menu-titre">SEUIL</h1>
         <p class="menu-tag">Le labyrinthe des Gardiens. Chaque porte est une question. Chaque réponse ouvre un chemin, et le chemin se paie en pas.</p>
+        <label class="menu-graine">
+          <span>Graine (facultative)</span>
+          <input id="graine" type="text" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="au hasard">
+        </label>
         <div class="menu-liste">
-          <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition</span><span class="menu-sub">45 pas, un dé, un sceau, et un serrurier à retrouver</span></button>
+          <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition</span><span class="menu-sub">Un deck de 8 salles, 45 pas, et un serrurier à retrouver</span></button>
+          <button class="menu-item" data-act="daily"><span class="menu-label">Défi du jour</span><span class="menu-sub">La même partie pour tout le monde aujourd'hui</span></button>
           <button class="menu-item" data-act="rules"><span class="menu-label">Comment jouer</span><span class="menu-sub">Deux minutes de lecture</span></button>
         </div>
         <p class="menu-foot">${esc(rec)}</p>
@@ -1116,15 +1200,43 @@
       <h2 class="${win ? "ok" : "ko"}">${titre}</h2>
       <p>${texte}</p>
       <ul class="bilan">
+        <li>Graine <b>${esc(G.seed)}</b></li>
         <li><b>${G.steps}</b> pas restants</li>
         <li><b>${G.rooms}</b> salles ouvertes</li>
         <li><b>${G.solved}</b> énigmes résolues, <b>${G.failed}</b> ratées</li>
         <li><b>${G.fragments}/${FRAGMENTS.length}</b> fragments du carnet</li>
       </ul>
       <div class="boutons">
-        <button class="btn principal" data-act="new">Rejouer</button>
+        <button class="btn principal" data-act="new">Nouvelle graine</button>
+        <button class="btn" data-act="replay">Rejouer cette graine</button>
         <button class="btn lien" data-act="menu">Menu</button>
       </div>`, win ? "reussi" : "rate");
+  }
+
+  function modaleDeck() {
+    const enMain = new Set(G.draft ? G.draft.cands.map((c) => c.card.uid) : []);
+    const dansPioche = new Set(G.pioche.map((c) => c.uid));
+    const lignes = G.deck
+      .slice()
+      .sort((a, b) => SALLES_PAR_ID[a.id].nom.localeCompare(SALLES_PAR_ID[b.id].nom) || a.uid - b.uid)
+      .map((card) => {
+        const t = SALLES_PAR_ID[card.id];
+        const statut = enMain.has(card.uid) ? "en main" : dansPioche.has(card.uid) ? "pioche" : "défausse";
+        const sorties = (t.doors || []).length;
+        return `<li class="deck-ligne">
+          <span class="deck-nom">${esc(t.nom)}</span>
+          ${card.theme ? `<span class="theme-tag" style="--t:${THEMES[card.theme].couleur}">${THEMES[card.theme].glyphe} ${THEMES[card.theme].nom}</span>` : `<span class="theme-tag" style="--t:#6E655A">sans thème</span>`}
+          <span class="deck-detail">${sorties === 0 ? "cul-de-sac" : sorties + " sortie" + (sorties > 1 ? "s" : "")} · ${esc(effetTexte(t.fx))}</span>
+          <span class="deck-statut ${statut === "pioche" ? "pi" : statut === "en main" ? "ma" : "de"}">${statut}</span>
+        </li>`;
+      })
+      .join("");
+    afficherModale(`
+      <p class="modal-sur">Votre deck</p>
+      <h2>${G.deck.length} cartes sur ${PLAFOND_DECK}</h2>
+      <p class="note-deck">Pioche ${G.pioche.length} · défausse ${G.defausse.length}${enMain.size ? " · main " + enMain.size : ""}. À chaque porte, vous tirez 3 cartes de la pioche, en jouez une, et les trois vont à la défausse. Quand la pioche a moins de 3 cartes, on y remélange la défausse.</p>
+      <ul class="deck-liste">${lignes}</ul>
+      <div class="boutons"><button class="btn principal" data-act="close">Fermer</button></div>`, "deck-modal");
   }
 
   function modaleRegles() {
@@ -1136,9 +1248,10 @@
         <li><b>Chaque pas coûte 1.</b> Traverser une porte, même pour revenir en arrière, consomme un pas. À zéro, l'expédition s'arrête.</li>
         <li><b>Les portes sont scellées.</b> Une porte verrouillée pose une énigme chronométrée : calcul, suite logique, orthographe. Trois niveaux de difficulté, de plus en plus durs en montant.</li>
         <li><b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.</li>
-        <li><b>Le plan se construit.</b> La salle choisie est posée derrière la porte, avec ses propres portes. Certaines rapportent des pas, des dés, des sceaux, du temps, des fragments du carnet de Valcourt. D'autres coûtent cher.</li>
-        <li><b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une salle est le thème des énigmes de ses portes de sortie : en choisissant une salle, vous choisissez ce que vous affronterez ensuite.</li>
-        <li><b>Dés et sceaux.</b> Un dé relance le tirage de trois salles. Un sceau ouvre une porte sans énigme.</li>
+        <li><b>Vos salles sont des cartes.</b> Vous partez avec un deck de 8 cartes. À chaque porte, vous tirez 3 cartes de la pioche et vous en posez une derrière la porte, avec ses propres portes. Les trois cartes vont ensuite à la défausse ; quand la pioche est presque vide, on y remélange la défausse. Touchez « Deck » pour voir vos cartes.</li>
+        <li><b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.</li>
+        <li><b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.</li>
+        <li><b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.</li>
         <li><b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le Vestibule, la Chambre et la ligne et la colonne où vous vous trouvez ne bougent pas. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.</li>
         <li><b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.</li>
       </ol>
@@ -1154,10 +1267,29 @@
     const act = el.getAttribute("data-act");
     switch (act) {
       case "new":
+      case "daily":
+      case "replay": {
+        const champ = document.getElementById("graine");
+        const graine = act === "daily" ? graineDuJour() : act === "replay" && G ? G.seed : champ ? champ.value : "";
         fermerModale();
-        nouvellePartie();
+        nouvellePartie(graine);
         son("page-journal");
         render();
+        break;
+      }
+      case "deck":
+        if (G && !(pz && !pz.fini)) modaleDeck();
+        break;
+      case "copier":
+        if (G) {
+          try {
+            navigator.clipboard.writeText(G.seed);
+            log("Graine " + G.seed + " copiée.");
+            render();
+          } catch (e) {
+            window.prompt("Graine de cette partie :", G.seed);
+          }
+        }
         break;
       case "menu":
         fermerModale();
@@ -1283,5 +1415,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), gen: (l, t) => makePuzzle(l, t) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();
