@@ -11,11 +11,12 @@
   // ------------------------------------------------------------------
   // Constantes et petits outils
   // ------------------------------------------------------------------
-  const ROWS = 9;
-  const COLS = 5;
-  const START = { r: 8, c: 2 };
-  const GOAL = { r: 0, c: 2 };
-  const START_STEPS = 45;
+  // Le plan change à chaque étage : dimensions, départ et arrivée sont rechargés par chargerEtage().
+  let ROWS = 9;
+  let COLS = 5;
+  let START = { r: 8, c: 2 };
+  let GOAL = { r: 0, c: 2 };
+  const ETAGES_TOTAL = 3;
   const DIRS = [
     { dr: -1, dc: 0, nom: "nord", fleche: "↑" },
     { dr: 0, dc: 1, nom: "est", fleche: "→" },
@@ -200,6 +201,58 @@
     ["refectoire", "logique"],
     ["cellier", null],
   ];
+  // ---- Les plans (un par étage, tirés par la graine) ----
+  // # case murée · . case libre · D départ · C Chambre · B Boutique fixe · P Puits fixe · S Sanctuaire fixe · F Forge fixe
+  // Le nombre de pas est propre à chaque plan : environ 5,6 fois la distance la plus courte au premier étage,
+  // 5,3 fois au deuxième, 5 fois au troisième.
+  const PLANS = [
+    { id: "vestibule", nom: "Le vestibule", tier: 1, pas: 34, carte: ["..C..", ".....", ".....", ".B...", ".....", ".....", "..D.."] },
+    { id: "ailes", nom: "Les deux ailes", tier: 1, pas: 45, carte: ["C.#..", "..#..", ".....", ".#.#.", ".....", "..#..", "..D.."] },
+    { id: "palier", nom: "Le palier", tier: 1, pas: 45, carte: ["....C.", "......", ".#..#.", "......", ".#..#.", ".D...."] },
+    { id: "croix", nom: "La croix", tier: 2, pas: 32, carte: ["#.C.#", "#...#", ".....", ".....", ".....", "#...#", "#.D.#"] },
+    { id: "piliers", nom: "Les piliers", tier: 2, pas: 32, carte: ["..C..", ".#.#.", ".....", ".#.#.", ".....", ".#.#.", "..D.."] },
+    { id: "aile", nom: "L'aile brisée", tier: 2, pas: 58, carte: ["C....", ".....", ".###.", ".....", ".....", ".###.", ".....", "....D"] },
+    { id: "anneau", nom: "L'anneau", tier: 3, pas: 50, carte: ["..C..", ".....", ".###.", ".###.", ".....", ".....", "..D.."] },
+    { id: "hall", nom: "Le grand hall", tier: 3, pas: 40, carte: ["..C..", ".....", ".#.#.", ".....", "..S..", ".....", ".#.#.", ".....", "..D.."] },
+    { id: "derniere", nom: "La dernière porte", tier: 3, pas: 60, carte: [".....C", "......", ".##...", "......", "...##.", "......", ".P....", "D....."] },
+    // Plan réservé aux tests automatiques : jamais tiré (étage 0)
+    { id: "essai", nom: "Plan d'essai", tier: 0, pas: 45, carte: ["..C..", ".....", ".....", ".....", ".....", ".....", ".....", ".....", "..D.."] },
+  ];
+  const SALLES_FIXES = { B: "boutique", P: "puits", S: "sanctuaire", F: "forge" };
+  const AJAR_PAR_ETAGE = { 1: 0.22, 2: 0.15, 3: 0.08 };
+
+  function parserPlan(plan, miroir) {
+    const rows = plan.carte.map((r) => (miroir ? r.split("").reverse().join("") : r));
+    const nr = rows.length, nc = rows[0].length;
+    const mur = Array.from({ length: nr }, () => Array(nc).fill(false));
+    const fixes = [];
+    let start = null, goal = null;
+    rows.forEach((ligne, r) => {
+      if (ligne.length !== nc) throw new Error("Plan " + plan.id + " : lignes de longueurs différentes");
+      ligne.split("").forEach((ch, c) => {
+        if (ch === "#") mur[r][c] = true;
+        else if (ch === "D") start = { r, c };
+        else if (ch === "C") goal = { r, c };
+        else if (SALLES_FIXES[ch]) fixes.push({ r, c, id: SALLES_FIXES[ch] });
+      });
+    });
+    if (!start || !goal) throw new Error("Plan " + plan.id + " : départ ou Chambre manquant");
+    // distance jusqu'à la Chambre, à travers les cases non murées
+    const dist = Array.from({ length: nr }, () => Array(nc).fill(Infinity));
+    dist[goal.r][goal.c] = 0;
+    const file = [[goal.r, goal.c]];
+    while (file.length) {
+      const [r, c] = file.shift();
+      for (let d = 0; d < 4; d++) {
+        const a = r + DIRS[d].dr, b = c + DIRS[d].dc;
+        if (a < 0 || b < 0 || a >= nr || b >= nc || mur[a][b] || dist[a][b] !== Infinity) continue;
+        dist[a][b] = dist[r][c] + 1;
+        file.push([a, b]);
+      }
+    }
+    return { rows: nr, cols: nc, mur, fixes, start, goal, dist };
+  }
+
   const HALL = { id: "hall", nom: "Vestibule", court: "Vestibule", kind: "start", desc: "Un vestibule glacé. Sur le linteau, une salamandre et ces mots : NUTRISCO ET EXTINGUO." };
   const CHAMBRE = { id: "chambre", nom: "Chambre des Gardiens", court: "Chambre", kind: "goal", desc: "Le cœur du labyrinthe." };
 
@@ -429,12 +482,19 @@
       souffle: false,
       tempUid: 0,
       flash: null,
-      steps: START_STEPS,
+      steps: 0,
+      stepsMax: 1,
+      etage: 1,
+      plan: null,
+      miroir: false,
+      mur: [],
+      distBut: [],
+      dist0: 1,
       dice: 1,
       seals: 1,
       timeBonus: 0,
-      grid: Array.from({ length: ROWS }, () => Array(COLS).fill(null)),
-      pos: { r: START.r, c: START.c },
+      grid: [],
+      pos: { r: 0, c: 0 },
       gems: [],
       shift: null,
       fragments: 0,
@@ -449,12 +509,50 @@
     };
     G.deck = DECK_DEPART.map((d) => ({ uid: ++G.uidMax, id: d[0], theme: d[1] }));
     G.pioche = melanger(G.deck);
-    G.grid[START.r][START.c] = { tpl: HALL, doors: [0, 1, 3], visited: true };
-    G.grid[GOAL.r][GOAL.c] = { tpl: CHAMBRE, doors: [2], visited: false, goal: true };
-    log("Vous entrez dans le vestibule. Quarante-cinq pas, pas un de plus.");
+    chargerEtage(1);
     const s = stats();
     s.runs = (s.runs || 0) + 1;
     saveStats(s);
+  }
+
+  const estMur = (r, c) => !!(G.mur[r] && G.mur[r][c]);
+  const caseLibre = (r, c) => inGrid(r, c) && !estMur(r, c);
+  const portesLibres = (r, c) => [0, 1, 2, 3].filter((d) => caseLibre(r + DIRS[d].dr, c + DIRS[d].dc));
+
+  // Charge le plan de l'étage n : le plan est tiré par la graine, et peut être retourné en miroir.
+  // `forcer` ne sert qu'aux tests automatiques.
+  function chargerEtage(n, forcer) {
+    const plan = forcer ? PLANS.find((p) => p.id === forcer.id) : avecFlux("plan:" + n, () => pick(PLANS.filter((p) => p.tier === n)));
+    const miroir = forcer ? !!forcer.miroir : avecFlux("plan-miroir:" + n, () => R() < 0.5);
+    const P = parserPlan(plan, miroir);
+    ROWS = P.rows;
+    COLS = P.cols;
+    START = P.start;
+    GOAL = P.goal;
+    G.etage = n;
+    G.plan = plan;
+    G.miroir = miroir;
+    G.mur = P.mur;
+    G.distBut = P.dist;
+    G.dist0 = Math.max(1, P.dist[START.r][START.c]);
+    G.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    G.pos = { r: START.r, c: START.c };
+    G.grid[START.r][START.c] = { tpl: HALL, doors: portesLibres(START.r, START.c), visited: true, fixe: true };
+    const dC = [2, 3, 1, 0].find((d) => caseLibre(GOAL.r + DIRS[d].dr, GOAL.c + DIRS[d].dc)); // la Chambre n'a qu'une porte
+    G.grid[GOAL.r][GOAL.c] = { tpl: CHAMBRE, doors: [dC], visited: false, goal: true, fixe: true };
+    P.fixes.forEach((f) => {
+      G.grid[f.r][f.c] = { tpl: SALLES_PAR_ID[f.id], doors: portesLibres(f.r, f.c), visited: false, fixe: true, theme: null };
+    });
+    G.stepsMax = Math.max(5, plan.pas - (aJoker("sablier2") ? 3 : 0)); // le Sablier fêlé retire 3 pas à chaque étage
+    G.steps = G.stepsMax;
+    G.dice = Math.max(1, G.dice); // un dé et un sceau sont renouvelés à chaque étage
+    G.seals = Math.max(1, G.seals);
+    G.pending = null;
+    G.draft = null;
+    G.shift = null;
+    G.boutique = null;
+    G.visite = null;
+    log("Étage " + n + " sur " + ETAGES_TOTAL + " : « " + plan.nom + " ». " + G.stepsMax + " pas.");
   }
 
   function log(msg) {
@@ -467,22 +565,32 @@
   // ------------------------------------------------------------------
   // Chaque salle porte ses propres portes (room.door[d]) : elles la suivent
   // quand une ligne ou une colonne glisse.
+  // Avancée vers la Chambre, de 0 (départ) à 1 (Chambre)
+  function progres(r, c) {
+    const d = G.distBut[r] ? G.distBut[r][c] : undefined;
+    if (d === undefined || d === Infinity) return 0.5;
+    return Math.max(0, Math.min(1, 1 - d / G.dist0));
+  }
+
   function porteDe(room, r, c, d) {
     room.door = room.door || {};
     const r2 = r + DIRS[d].dr, c2 = c + DIRS[d].dc;
     const cible = G.grid[r2][c2];
     let D = room.door[d];
     if (!D) {
-      D = avecFlux("porte:" + r + "," + c + "," + d, () => {
+      D = avecFlux("porte:" + G.etage + ":" + r + "," + c + "," + d, () => {
         let level, status = "locked";
         if (cible && cible.goal) level = 3;
         else {
-          const row = Math.min(r, r2);
-          level = row >= 6 ? 1 : row >= 3 ? 2 : 3;
+          // La difficulté monte avec l'étage et avec l'avancée vers la Chambre
+          const p = Math.max(progres(r, c), progres(r2, c2));
+          const seuil = { 1: 0.5, 2: 0.35, 3: 0.2 }[G.etage] || 0.5;
+          level = p < seuil ? G.etage : Math.min(3, G.etage + 1);
+          const plancher = G.etage === 1 ? 1 : 2;
           const x = R();
-          if (x < 0.2 && level > 1) level -= 1;
+          if (x < 0.2 && level > plancher) level -= 1;
           else if (x > 0.85 && level < 3) level += 1;
-          if (R() < 0.18) { status = "ajar"; level = 0; }
+          if (R() < (AJAR_PAR_ETAGE[G.etage] || 0.15)) { status = "ajar"; level = 0; }
         }
         return { level, status, theme: room.theme || pick(THEME_IDS) };
       });
@@ -497,7 +605,7 @@
     const room = G.grid[r][c];
     if (!room || !room.doors.includes(d)) return { s: "wall" };
     const r2 = r + DIRS[d].dr, c2 = c + DIRS[d].dc;
-    if (!inGrid(r2, c2)) return { s: "wall" };
+    if (!caseLibre(r2, c2)) return { s: "wall" };
     const n = G.grid[r2][c2];
     if (n) {
       if (!n.doors.includes(opp(d))) return { s: "wall" };
@@ -519,7 +627,7 @@
       if (miroir) rel = x === "L" ? "R" : x === "R" ? "L" : "F";
       const dd = rel === "F" ? d : rel === "R" ? (d + 1) % 4 : (d + 3) % 4;
       const nr = tr + DIRS[dd].dr, nc = tc + DIRS[dd].dc;
-      if (!inGrid(nr, nc)) return; // pas de porte sur le vide
+      if (!caseLibre(nr, nc)) return; // pas de porte sur le vide ni contre un mur
       const voisin = G.grid[nr][nc];
       if (voisin && !voisin.doors.includes(opp(dd))) return; // mur en face
       abs.push(dd);
@@ -649,7 +757,7 @@
   function calculerRecompense(P) {
     const r2 = P.r + DIRS[P.d].dr, c2 = P.c + DIRS[P.d].dc;
     if (G.grid[r2][c2]) return null; // porte de la Chambre : la fin de l'étage suffit
-    return avecFlux("recompense:" + P.r + "," + P.c + "," + P.d, () => {
+    return avecFlux("recompense:" + G.etage + ":" + P.r + "," + P.c + "," + P.d, () => {
       if (R() >= (RECOMPENSE_PAR_NIVEAU[P.level] || 0)) return null;
       const forcer = !G.boutiqueOfferte && copies("boutique") === 0 ? "boutique" : null;
       if (forcer) G.boutiqueOfferte = true;
@@ -758,12 +866,12 @@
   }
 
   function ouvrirBoutique(type) {
-    G.boutique = avecFlux("boutique:" + G.rooms, () => ({
+    G.boutique = avecFlux("boutique:" + G.etage + ":" + G.rooms, () => ({
       type,
-      stock: offrir(type === "carte" ? 4 : 2).map((card) => ({ card, prix: prixCarte(SALLES_PAR_ID[card.id]) })),
+      stock: offrir(type === "passage" ? 2 : 4).map((card) => ({ card, prix: prixCarte(SALLES_PAR_ID[card.id]) })),
       jokers: offrirJokers(2).map((id) => ({ id, prix: prixJoker(JOKERS_PAR_ID[id]) })),
     }));
-    log(type === "carte" ? "Vous entrez dans la Boutique." : "Un marchand des Gardiens vous attendait dans cette salle.");
+    log(type === "carte" ? "Vous entrez dans la Boutique." : type === "etage" ? "Un marchand des Gardiens vous attend au pied de l'escalier." : "Un marchand des Gardiens vous attendait dans cette salle.");
     modaleBoutique();
   }
 
@@ -846,7 +954,7 @@
       if (room.tpl.fx && room.tpl.fx.shop) G.visite = "carte";
       else if (room.marchand) G.visite = "passage";
     }
-    if (room.goal) return finir("win");
+    if (room.goal) return G.etage < ETAGES_TOTAL ? finEtage() : finir("win");
     if (G.steps <= 0) return finir("steps");
     if (impasse()) return finir("stuck");
     render();
@@ -972,6 +1080,28 @@
     return true;
   }
 
+  function finEtage() {
+    log("Étage " + G.etage + " terminé : la Chambre est atteinte avec " + G.steps + " pas restants.");
+    son("tampon");
+    fermerModale();
+    render();
+    afficherModale(`
+      <p class="modal-sur">Étage ${G.etage} sur ${ETAGES_TOTAL} · ${esc(G.plan.nom)}</p>
+      <h2 class="ok">La Chambre s'ouvre.</h2>
+      <p>Une porte de pierre coulisse derrière l'autel, sur un escalier qui descend. Avant de la franchir, un marchand des Gardiens vous attend.</p>
+      <ul class="bilan">
+        <li><b>${G.steps}</b> pas restants (ils seront renouvelés)</li>
+        <li><b>${G.coins}</b> pièces, <b>${G.deck.length}</b> cartes, <b>${G.jokers.length}</b> joker${G.jokers.length > 1 ? "s" : ""}</li>
+      </ul>
+      <div class="boutons"><button class="btn principal" data-act="etage-suite">Voir le marchand</button></div>`, "reussi sans-echap");
+  }
+
+  function nouvelEtage() {
+    chargerEtage(G.etage + 1);
+    son("page-journal");
+    render();
+  }
+
   function finir(raison) {
     G.over = raison;
     fermerModale();
@@ -994,7 +1124,7 @@
   function demarrerEnigme() {
     const P = G.pending;
     const porte = G.grid[P.r][P.c].door[P.d];
-    const p = avecFlux("enigme:" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => makePuzzle(P.level, P.theme));
+    const p = avecFlux("enigme:" + G.etage + ":" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => makePuzzle(P.level, P.theme));
     porte.essais = (porte.essais || 0) + 1; // une porte retentée pose une autre énigme
     if (aJoker("loupe")) declencher("loupe", "+5 secondes", true);
     if (aJoker("sablier2")) declencher("sablier2", "+10 secondes", true);
@@ -1192,9 +1322,13 @@
   function plateauHTML() {
     const S = G.shift;
     const gemS = S ? G.gems[S.gi] : null;
-    let h = `<div class="board${S ? " shifting" : ""}" role="grid" aria-label="Plan du labyrinthe">`;
+    let h = `<div class="board${S ? " shifting" : ""}" role="grid" aria-label="Plan du labyrinthe" style="--cols:${COLS};--rows:${ROWS}">`;
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
+        if (estMur(r, c)) {
+          h += `<div class="cell mur" role="gridcell" data-cell="${r},${c}" aria-label="Mur"></div>`;
+          continue;
+        }
         const room = G.grid[r][c];
         const cur = G.pos.r === r && G.pos.c === c;
         const cible = !!(G.draft && G.draft.tr === r && G.draft.tc === c);
@@ -1223,6 +1357,10 @@
           const cotes = [0, 1, 2, 3].map((k) => coteEtat(r, c, k));
           contenu = salleSVG(room.tpl, cotes, { nom: room.tpl.court, theme: room.theme });
           cls += " placed" + (room.visited ? "" : " unseen") + (room.goal ? " goal" : "");
+          if (room.fixe && !room.goal && room.tpl !== HALL) {
+            cls += " fixe";
+            contenu += `<span class="pin" title="Salle fixe : elle ne bouge jamais">📌</span>`;
+          }
           if (cur) {
             cls += " current";
             contenu += `<img class="pion" src="img/salamandre.png" alt="Vous" onerror="this.outerHTML='<span class=&quot;pion-point&quot;></span>'">`;
@@ -1256,14 +1394,26 @@
   // ------------------------------------------------------------------
   // Gemmes : décaler une ligne (H) ou une colonne (V)
   // ------------------------------------------------------------------
+  // Les cases d'une ligne (H) ou d'une colonne (V) qui peuvent recevoir une salle mobile :
+  // ni murées, ni occupées par une salle fixe (départ, Chambre, boutique fixe...).
+  function casesMobiles(axe, i) {
+    const n = axe === "H" ? COLS : ROWS;
+    const out = [];
+    for (let j = 0; j < n; j++) {
+      const r = axe === "H" ? i : j, c = axe === "H" ? j : i;
+      if (estMur(r, c)) continue;
+      const salle = G.grid[r][c];
+      if (salle && salle.fixe) continue;
+      out.push({ r, c });
+    }
+    return out;
+  }
+
   function ligneOk(axe, i) {
     const poing = aJoker("poing"); // le Poing des Gardiens permet de décaler sa propre ligne
-    if (axe === "H") {
-      if ((i === G.pos.r && !poing) || i === START.r || i === GOAL.r) return false;
-    } else if ((i === G.pos.c && !poing) || i === START.c || i === GOAL.c) return false;
-    const n = axe === "H" ? COLS : ROWS;
-    for (let j = 0; j < n; j++) if (axe === "H" ? G.grid[i][j] : G.grid[j][i]) return true;
-    return false;
+    if (!poing && i === (axe === "H" ? G.pos.r : G.pos.c)) return false;
+    const cases = casesMobiles(axe, i);
+    return cases.length >= 2 && cases.some((x) => G.grid[x.r][x.c]);
   }
 
   function gemUtile() {
@@ -1279,23 +1429,21 @@
     if (!S || S.sel === null) return;
     const gem = G.gems[S.gi];
     if (!gem || !crans(gem).includes(Math.abs(k)) || !ligneOk(gem.axe, S.sel)) return;
-    const H = gem.axe === "H", i = S.sel, n = H ? COLS : ROWS;
-    const anciens = [];
-    for (let j = 0; j < n; j++) anciens.push(H ? G.grid[i][j] : G.grid[j][i]);
-    const nouveaux = Array(n).fill(null);
-    anciens.forEach((salle, j) => {
-      nouveaux[(((j + k) % n) + n) % n] = salle;
+    const H = gem.axe === "H", i = S.sel;
+    // Les cases fixes restent en place ; les salles mobiles tournent entre les cases mobiles, en les sautant.
+    const cases = casesMobiles(gem.axe, i);
+    const m = cases.length;
+    const contenus = cases.map((x) => G.grid[x.r][x.c]);
+    const vers = (idx) => (((idx + k) % m) + m) % m;
+    cases.forEach((x, idx) => {
+      const salle = contenus[idx];
+      G.grid[cases[vers(idx)].r][cases[vers(idx)].c] = salle;
       // Les passages déjà ouverts sont recalculés d'après le nouveau voisinage
       if (salle && salle.door) for (const d in salle.door) if (salle.door[d].status === "open") delete salle.door[d];
     });
-    // Poing des Gardiens : le joueur est entraîné avec sa salle
-    if (H ? G.pos.r === i : G.pos.c === i) {
-      G.pos = H ? { r: i, c: (((G.pos.c + k) % n) + n) % n } : { r: (((G.pos.r + k) % n) + n) % n, c: i };
-    }
-    for (let j = 0; j < n; j++) {
-      if (H) G.grid[i][j] = nouveaux[j];
-      else G.grid[j][i] = nouveaux[j];
-    }
+    // Poing des Gardiens : le joueur est entraîné avec sa salle (s'il n'est pas sur une case fixe)
+    const iJoueur = cases.findIndex((x) => x.r === G.pos.r && x.c === G.pos.c);
+    if (iJoueur >= 0) G.pos = { r: cases[vers(iJoueur)].r, c: cases[vers(iJoueur)].c };
     // Un passage ouvert vers une case devenue vide n'existe plus : la porte est à refaire
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
@@ -1336,7 +1484,7 @@
 
   function panneauHTML() {
     const room = G.grid[G.pos.r][G.pos.c];
-    const pct = Math.max(0, Math.min(100, (G.steps / START_STEPS) * 100));
+    const pct = Math.max(0, Math.min(100, (G.steps / G.stepsMax) * 100));
     const bas = G.steps <= 10;
     let h = `<div class="hud">
       <div class="hud-steps${bas ? " bas" : ""}">
@@ -1393,10 +1541,10 @@
         <div class="col-plateau">
           <div class="hud-mobile">${hudMobile()}</div>
           ${barreDecalage()}
-          <div class="plateau-cadre">
-            <div class="etiquette haut">Chambre des Gardiens</div>
+          <div class="plateau-cadre" style="--cols:${COLS};--rows:${ROWS}">
+            <div class="etiquette haut">Étage ${G.etage}/${ETAGES_TOTAL} · ${esc(G.plan.nom)}</div>
             ${plateauHTML()}
-            <div class="etiquette bas">Vestibule</div>
+            <div class="etiquette bas">nord ↑</div>
           </div>
           <p class="aide">Touchez une salle voisine, ou utilisez les flèches / ZQSD.</p>
         </div>
@@ -1457,7 +1605,7 @@
           <input id="graine" type="text" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="au hasard">
         </label>
         <div class="menu-liste">
-          <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition</span><span class="menu-sub">Un deck de 8 salles, 45 pas, et un serrurier à retrouver</span></button>
+          <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition</span><span class="menu-sub">Un deck de 8 salles, trois étages, et un serrurier à retrouver</span></button>
           <button class="menu-item" data-act="daily"><span class="menu-label">Défi du jour</span><span class="menu-sub">La même partie pour tout le monde aujourd'hui</span></button>
           <button class="menu-item" data-act="rules"><span class="menu-label">Comment jouer</span><span class="menu-sub">Deux minutes de lecture</span></button>
         </div>
@@ -1595,6 +1743,7 @@
       <p>${texte}</p>
       <ul class="bilan">
         <li>Graine <b>${esc(G.seed)}</b></li>
+        <li>Étage <b>${G.etage}</b> sur ${ETAGES_TOTAL}${G.plan ? " · " + esc(G.plan.nom) : ""}</li>
         <li><b>${G.steps}</b> pas restants</li>
         <li><b>${G.rooms}</b> salles ouvertes</li>
         <li><b>${G.solved}</b> énigmes résolues, <b>${G.failed}</b> ratées</li>
@@ -1711,7 +1860,7 @@
       })
       .join("");
     afficherModale(`
-      <p class="modal-sur">${B.type === "carte" ? "Boutique" : "Marchand de passage"}</p>
+      <p class="modal-sur">${B.type === "carte" ? "Boutique" : B.type === "etage" ? "Entre deux étages" : "Marchand de passage"}</p>
       <h2>Vos pièces : ${G.coins} 🪙</h2>
       <p class="note-deck">Deck : ${G.deck.length}/${plafondDeck()}${plein ? " (plein)" : ""}. Une carte achetée rejoint la défausse.</p>
       <ul class="boutique-liste">${stock}</ul>
@@ -1720,7 +1869,7 @@
         <summary>Retirer une carte du deck (${prix} 🪙, puis +2 à chaque retrait)</summary>
         <ul class="retrait-liste">${retrait}</ul>
       </details>
-      <div class="boutons"><button class="btn principal" data-act="quitter">Quitter la boutique</button></div>`, "boutique-modal sans-echap");
+      <div class="boutons"><button class="btn principal" data-act="quitter">${B.type === "etage" ? "Étage suivant" : "Quitter la boutique"}</button></div>`, "boutique-modal sans-echap");
   }
 
   // Peut-on ouvrir une fenêtre d'information sans écraser une décision en cours ?
@@ -1760,7 +1909,8 @@
       <p class="modal-sur">Comment jouer</p>
       <h2>Règles de l'expédition</h2>
       <ol class="regles">
-        <li><b>Objectif :</b> atteindre la <b>Chambre des Gardiens</b>, tout en haut du plan, en partant du vestibule tout en bas.</li>
+        <li><b>Objectif :</b> traverser <b>trois étages</b>. À chaque étage, atteindre la <b>Chambre des Gardiens</b> en partant du vestibule. Chaque étage a son plan (tiré par la graine), son nombre de pas, et ses portes de plus en plus dures. Vous gardez votre deck, vos jokers et vos pièces d'un étage à l'autre ; un marchand vous attend entre deux étages. Un dé et un sceau vous sont rendus à chaque étage.</li>
+        <li><b>Murs et salles fixes.</b> Une case sombre est un mur : rien ne peut y être posé. Une salle marquée d'une punaise 📌 (boutique, puits...) est posée d'avance et ne bouge jamais, même quand une gemme décale sa ligne : les autres salles glissent en la sautant.</li>
         <li><b>Chaque pas coûte 1.</b> Traverser une porte, même pour revenir en arrière, consomme un pas. À zéro, l'expédition s'arrête.</li>
         <li><b>Les portes sont scellées.</b> Une porte verrouillée pose une énigme chronométrée : calcul, suite logique, orthographe. Trois niveaux de difficulté, de plus en plus durs en montant.</li>
         <li><b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.</li>
@@ -1770,7 +1920,7 @@
         <li><b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.</li>
         <li><b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi, gemmes plus puissantes... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.</li>
         <li><b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.</li>
-        <li><b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le Vestibule, la Chambre et la ligne et la colonne où vous vous trouvez ne bougent pas. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.</li>
+        <li><b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes et les murs ne bougent pas, et la ligne et la colonne où vous vous trouvez restent hors d'atteinte. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.</li>
         <li><b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.</li>
       </ol>
       <div class="boutons"><button class="btn principal" data-act="close">Compris</button></div>`, "regles");
@@ -1825,11 +1975,18 @@
       case "retirer":
         retirerAchat(parseInt(el.getAttribute("data-uid"), 10));
         break;
-      case "quitter":
+      case "etage-suite":
+        fermerModale();
+        ouvrirBoutique("etage");
+        break;
+      case "quitter": {
+        const fin = G.boutique && G.boutique.type === "etage";
         G.boutique = null;
         fermerModale();
-        render();
+        if (fin) nouvelEtage();
+        else render();
         break;
+      }
       case "copier":
         if (G) {
           try {
@@ -1965,5 +2122,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

@@ -141,13 +141,14 @@ Chaque étape se teste seule.
 1. **Le moteur du deck** (fait). Générateur de hasard à graine, pioche, défausse et remélange, deck de départ.
 2. **L'économie** (fait). Monnaie, récompenses, Boutique, retrait, plafond de 15.
 3. **Les jokers** (fait). Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement. C'est là que vivent les effets de voisinage entre salles de même couleur.
-4. **Les niveaux.** Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages avec pas propres à chaque plan.
+4. **Les niveaux** (fait). Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages avec pas propres à chaque plan.
 5. **La progression entre parties.** Cartes et jokers débloqués par des exploits, joker fétiche, écran des graines et défi du jour complets.
 
 Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
 ## 5 bis. Avancement
 
+- **Étape 4 : les niveaux, faite** (voir plus bas).
 - **Étape 3 : les jokers, faite** (voir plus bas).
 - **Étape 2 : l'économie, faite** (voir plus bas).
 - **Étape 1 : le moteur du deck, fait.** Générateur de hasard à graine (flux séparés par porte, énigme, pioche et orientation des salles), deck de départ de 8 cartes à couleur fixe, cycle pioche, défausse et remélange, dés qui défaussent et retirent 3 cartes, fenêtre « Deck », graine affichée et copiable, saisie d'une graine et défi du jour dans le menu.
@@ -185,6 +186,37 @@ Choix d'implémentation à connaître :
 | Alambic | Double les pas positifs, dés et sceaux des salles bonus. Pas le temps, les gemmes ni les fragments. |
 
 Vérifié par des tests automatiques : chaque effet séparément, l'achat, la revente, les emplacements, le refus des jokers incompatibles, la fréquence de la Clé (105 tirages sur 300, soit environ 1 sur 3) et du Sentier (environ 45 %), le déterminisme des parties avec jokers, et l'absence de tout appel au hasard du navigateur.
+
+### Étape 4 : les niveaux (faite)
+
+- **Une partie = trois étages.** Chaque étage a son plan, tiré par la graine parmi les plans de sa difficulté, avec un miroir possible. Atteindre la Chambre d'un étage ouvre un écran de fin d'étage, puis un marchand (4 cartes, 2 jokers), puis l'étage suivant. La Chambre du 3ᵉ étage est la victoire.
+- **Ce qui se conserve d'un étage à l'autre :** le deck, la pioche et la défausse, les jokers, les pièces, les gemmes, le Second souffle déjà utilisé. **Ce qui est renouvelé :** les pas (propres au plan), un dé et un sceau (jamais moins de 1 : on ne perd pas ceux qu'on a en réserve), le plan, les portes.
+- **Pas de chaque plan.** Écrits dans le plan : environ 5,6 fois la distance la plus courte à l'étage 1, 5,3 fois à l'étage 2, 5 fois à l'étage 3. Le Sablier fêlé retire 3 pas à chaque étage.
+- **Difficulté des portes.** Elle monte avec l'étage et avec l'avancée vers la Chambre. Niveau moyen des portes mesuré : 1,5 (étage 1), 2,6 (étage 2), 2,8 (étage 3). Aux étages 2 et 3, plus aucune porte de niveau 1. Portes entrouvertes : 22 %, 15 %, 8 %.
+- **Format d'un plan** (texte, une chaîne par ligne) : `#` case murée, `.` case libre, `D` départ, `C` Chambre, `B` Boutique fixe, `P` Puits fixe, `S` Sanctuaire fixe, `F` Forge fixe. Les plans font au plus 6 colonnes pour rester lisibles sur un téléphone.
+- **Murs.** Aucune salle dessus, on ne les traverse pas, et une porte contre un mur n'existe pas (pas plus que contre le bord du plan).
+- **Salles fixes** (départ, Chambre, Boutique, Puits...). Elles sont posées d'avance avec leurs 4 portes et ne bougent jamais. Elles sont marquées d'une punaise 📌. La Chambre n'a qu'une porte, du côté d'une case libre (sud de préférence).
+- **Gemmes.** Le vestibule, la Chambre et les salles fixes ne bloquent plus le décalage : quand une ligne ou colonne glisse, **les cases fixes et les murs restent en place** et les salles mobiles tournent entre les cases mobiles en les sautant. Seules la ligne et la colonne du joueur restent hors d'atteinte (sauf avec le Poing des Gardiens, qui entraîne le joueur avec sa salle si celle-ci est mobile).
+
+Les 9 plans actuels :
+
+| Étage | Plan | Taille | Distance | Pas |
+| --- | --- | --- | --- | --- |
+| 1 | Le vestibule (Boutique fixe) | 5×7 | 6 | 34 |
+| 1 | Les deux ailes | 5×7 | 8 | 45 |
+| 1 | Le palier | 6×6 | 8 | 45 |
+| 2 | La croix | 5×7 | 6 | 32 |
+| 2 | Les piliers | 5×7 | 6 | 32 |
+| 2 | L'aile brisée | 5×8 | 11 | 58 |
+| 3 | L'anneau | 5×7 | 10 | 50 |
+| 3 | Le grand hall (Sanctuaire fixe) | 5×9 | 8 | 40 |
+| 3 | La dernière porte (Puits fixe) | 6×8 | 12 | 60 |
+
+Un dixième plan, « d'essai » (l'ancien plan 5×9, sans murs), n'est jamais tiré : il ne sert qu'aux tests automatiques.
+
+Vérifié par des tests automatiques : validité des 18 plans (chemin, aucune case isolée), même graine = mêmes plans, les 9 plans apparaissent parmi 40 graines, aucune porte contre un mur sur 1 404 salles tirées, décalages avec cases fixes et murs, transitions d'étage complètes (conservation du deck, des pièces et des jokers, renouvellement des pas, dés et sceaux), victoire au 3ᵉ étage, montée de la difficulté.
+
+À revoir après quelques parties : les pas de chaque plan, la fréquence des récompenses de cartes (toujours réglée pour un seul étage : porte de niveau 2, une fois sur deux ; niveau 3, toujours), et le nombre de plans (2 ou 3 par difficulté).
 
 ## 6. Risques à surveiller
 

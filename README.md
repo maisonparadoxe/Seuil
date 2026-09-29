@@ -25,4 +25,6 @@ Une énigme résolue rapporte des pièces, et les portes difficiles offrent parf
 
 Les **jokers** sont des règles passives (temps en plus, pièces en plus, tirage élargi, gemmes plus puissantes...). On a 3 emplacements au départ, jusqu'à 5. On les achète en boutique et on les revend à moitié prix ; les jokers « malédiction » sont puissants mais ont un prix.
 
+Une partie est une **suite de trois étages**. Chaque étage a son plan (tiré par la graine), avec des murs et parfois une salle fixe (📌), son nombre de pas et des portes de plus en plus dures. Vous gardez votre deck, vos jokers et vos pièces d'un étage à l'autre ; un marchand vous attend entre deux étages.
+
 La conception complète est dans `CONCEPTION.md`.
