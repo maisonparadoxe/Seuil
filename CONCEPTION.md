@@ -2,7 +2,7 @@
 
 Ce document garde la mémoire des décisions prises pour faire évoluer Seuil d'un prototype de labyrinthe à énigmes vers un **deckbuilder roguelike où les salles sont les cartes**. Chaque décision a été discutée et tranchée. Il ne reste que quelques détails de contenu, listés en fin de document.
 
-Dernière mise à jour : 29 septembre 2026 (points ouverts tranchés).
+Dernière mise à jour : 29 septembre 2026 (bonus de voisinage confié aux jokers).
 
 ## 1. Où en est le jeu aujourd'hui
 
@@ -35,7 +35,7 @@ Une expédition traverse **trois étages** d'un labyrinthe des Gardiens du seuil
 | Monnaie | Une seule, gagnée aux énigmes selon la difficulté de la porte et le temps restant. Les salles bonus peuvent en donner. |
 | Gains | Porte niveau 1 : 2 pièces. Niveau 2 : 3. Niveau 3 : 5. Plus **1 pièce** si l'énigme est résolue avec plus de la moitié du temps restant. Un étage rapporte environ 40 pièces. |
 | Prix | Carte courante 6. Carte spéciale 10. Retrait d'une carte 5 (+2 à chaque retrait). Joker commun 8, peu commun 14, rare 22. Emplacement de joker supplémentaire 15, puis 25. Économie « moyenne » : on achète 3 à 5 choses par étage. À régler après quelques parties. |
-| Couleurs | La couleur reste le thème des énigmes des portes de sortie : le deck décide de ce qu'on affronte. Poser une salle contre une salle de même couleur rapporte **1 pièce**. |
+| Couleurs | La couleur reste le thème des énigmes des portes de sortie : le deck décide de ce qu'on affronte. **Aucun bonus de voisinage par défaut** : les effets liés à la proximité de deux salles de même couleur passent par des **jokers** (voir 3.2). |
 
 ### 3.2 Les jokers
 
@@ -57,12 +57,12 @@ Brouillon du catalogue. Les prix indiqués ci-dessous sont ceux de la version d'
 | Commun (4) | Loupe de Valcourt | +5 secondes à chaque énigme | Énigmes |
 | | Pièce fêlée | +1 pièce à chaque énigme résolue | Économie |
 | | Baguette de sourcier | Les salles à gemmes sortent deux fois plus souvent | Gemmes |
-| | Craie du géomètre | Le bonus de voisinage rapporte 2 pièces au lieu d'1 | Plan |
+| | Craie du géomètre | Poser une salle contre une salle de même couleur rapporte 1 pièce | Plan |
 | Peu commun (7) | Sacoche du serrurier | +3 au plafond du deck (15 → 18) | Deck |
 | | Clé à quatre dents | Une chance sur 3 qu'un tirage contienne une salle à 4 portes | Tirage |
 | | Ciseau de lapidaire | Les gemmes décalent 1 ou 2 crans, même les courantes | Gemmes |
 | | Boussole du nord | Chaque tirage contient au moins une salle avec une porte face au joueur | Tirage |
-| | Bottes ferrées | Un passage de porte sur cinq ne coûte aucun pas | Pas |
+| | Sentier de couleur | Entrer dans une salle voisine d'une salle de même couleur : 50 % de chance que le pas ne coûte rien | Pas |
 | Rare (12) | Quatrième main | Tirer 4 cartes au lieu de 3 | Tirage |
 | | Second souffle | Une énigme ratée par partie ne condamne pas la porte | Énigmes |
 | | Alambic | Les effets des salles bonus (pas, dés, sceaux) sont doublés | Économie |
@@ -136,14 +136,15 @@ Il ne reste que du contenu à écrire et à régler en jouant :
 
 ## 5. Ordre de développement proposé
 
-Chaque étape se teste seule. La première change le plus le jeu et se joue déjà sans les autres.
+Chaque étape se teste seule.
 
-1. **Le moteur du deck.** Générateur de hasard à graine, pioche, défausse et remélange, avec le deck de départ qui remplace le pool actuel.
-2. **L'économie.** Monnaie, récompenses de portes difficiles, Boutique, retrait, plafond de 15.
-3. **Le bonus de voisinage** entre salles de même couleur.
-4. **Les jokers.** Emplacements, catalogue de 12, achat et revente, indicateur de déclenchement.
-5. **Les niveaux.** Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages.
-6. **La progression entre parties.** Cartes et jokers débloqués, joker fétiche, écran des graines, défi du jour.
+1. **Le moteur du deck** (fait). Générateur de hasard à graine, pioche, défausse et remélange, deck de départ.
+2. **L'économie** (fait). Monnaie, récompenses, Boutique, retrait, plafond de 15.
+3. **Les jokers.** Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement. C'est là que vivent les effets de voisinage entre salles de même couleur.
+4. **Les niveaux.** Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages avec pas propres à chaque plan.
+5. **La progression entre parties.** Cartes et jokers débloqués par des exploits, joker fétiche, écran des graines et défi du jour complets.
+
+Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
 ## 5 bis. Avancement
 
