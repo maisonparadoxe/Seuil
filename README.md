@@ -21,4 +21,6 @@ Vos salles sont des cartes : vous partez avec un deck de 8 cartes, vous en tirez
 
 Chaque partie a une **graine** (six lettres). Avec la même graine, la partie est la même : mêmes portes, mêmes énigmes, même pioche. Écrivez une graine dans le champ du menu pour rejouer une partie, ou touchez « Défi du jour » pour jouer la même partie que tout le monde aujourd'hui.
 
+Une énigme résolue rapporte des pièces, et les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand toutes les 10 salles posées, permet d'acheter des cartes et d'en retirer. Le deck est limité à 15 cartes.
+
 La conception complète est dans `CONCEPTION.md`.

@@ -147,9 +147,19 @@ Chaque étape se teste seule. La première change le plus le jeu et se joue déj
 
 ## 5 bis. Avancement
 
+- **Étape 2 : l'économie, faite** (voir plus bas).
 - **Étape 1 : le moteur du deck, fait.** Générateur de hasard à graine (flux séparés par porte, énigme, pioche et orientation des salles), deck de départ de 8 cartes à couleur fixe, cycle pioche, défausse et remélange, dés qui défaussent et retirent 3 cartes, fenêtre « Deck », graine affichée et copiable, saisie d'une graine et défi du jour dans le menu.
   - Vérifié par des parties automatiques : même graine, même partie ; graines différentes, parties différentes ; aucun appel au hasard du navigateur pendant une partie ; le deck conserve toujours ses 8 cartes, réparties entre pioche, défausse et main.
-  - **Limite actuelle :** le deck ne contient que les 8 cartes de départ, puisque les récompenses et la Boutique arrivent à l'étape 2. Les autres salles du jeu (gemmes, fragments du carnet, pièges) ne sortent donc plus pour l'instant.
+  - Le deck de départ ne contient que 8 cartes : les autres salles (gemmes, fragments du carnet) arrivent par les récompenses et la boutique (étape 2).
+
+### Étape 2 : l'économie (faite)
+
+- **Pièces.** 2, 3 ou 5 pièces par énigme résolue selon le niveau de la porte, plus 1 si elle est résolue avec plus de la moitié du temps restant. Un sceau ne rapporte rien. Les pièces s'affichent dans le panneau.
+- **Récompenses.** Après une énigme résolue, une porte de niveau 2 ou 3 peut offrir le choix d'une carte nouvelle parmi trois, avant le tirage de la salle. La carte rejoint la défausse. Si le deck est plein (15), on ne peut plus en prendre. La carte **Boutique** est proposée d'office à la première récompense.
+- **Deux accès à la boutique**, comme décidé : la **carte Boutique** (salle à 2 sorties, 4 cartes en vente) et un **marchand de passage** garanti toutes les 10 salles posées (2 cartes en vente). Chacun s'ouvre à la première entrée dans la salle.
+- **Achat et retrait.** Carte courante 6 pièces, carte spéciale 10. Retrait d'une carte 5 pièces, puis 7, 9, etc. On ne peut pas descendre sous 4 cartes ni dépasser 15. Les salles pièges ne sont jamais proposées.
+- **Écart temporaire avec la conception.** Le document prévoyait des récompenses sur les portes de niveau 3 seulement. Comme il n'y a qu'un étage pour l'instant, les portes de niveau 3 sont trop tardives : une porte de niveau 2 offre une carte une fois sur deux, une de niveau 3 toujours. À revoir quand les étages existeront. Les jokers ne sont pas encore en vente (étape 4).
+- **Correction au passage.** La touche Échap ne ferme plus les fenêtres de décision (résultat d'énigme, récompense, boutique) : elle pouvait laisser la partie dans un état incohérent.
 
 ## 6. Risques à surveiller
 
