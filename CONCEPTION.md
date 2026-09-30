@@ -2,7 +2,7 @@
 
 Ce document garde la mémoire des décisions prises pour faire évoluer Seuil d'un prototype de labyrinthe à énigmes vers un **deckbuilder roguelike où les salles sont les cartes**. Chaque décision a été discutée et tranchée. Il ne reste que quelques détails de contenu, listés en fin de document.
 
-Dernière mise à jour : 29 septembre 2026 (bonus de voisinage confié aux jokers).
+Dernière mise à jour : 30 septembre 2026 (cases spéciales décidées).
 
 ## 1. Où en est le jeu aujourd'hui
 
@@ -105,6 +105,35 @@ Le vestibule           Les deux ailes        La croix
 | Rôle | Un **dé** défausse les 3 cartes tirées et en tire 3 nouvelles. Un **sceau** ouvre une porte sans énigme (sans pièces ni récompense). |
 | Quantité | **Renouvelés à chaque étage** : 1 dé et 1 sceau au début de chaque étage. La Boutique ne les vend pas ; les salles bonus peuvent encore en donner en cours d'étage. |
 
+### 3.3 ter Les cases spéciales (environnements)
+
+Certaines cases du plan ont un **environnement spécial** : une particularité tirée au hasard, qui change les règles un instant. Elles rendent chaque plan vivant et donnent un rôle au placement des salles.
+
+| Sujet | Décision |
+| --- | --- |
+| Révélation | **Mixte.** Un symbole « ? » marque les cases spéciales dès le début de l'étage. L'effet est révélé à l'arrivée sur la case. |
+| Exception | Les **interdictions de pose** sont révélées quand on ouvre la porte vers la case, sur l'écran de choix : elles changent la salle qu'on peut poser, il faut donc les connaître avant. |
+| Durée | Jusqu'à la **prochaine salle posée** : l'effet s'applique à la salle posée sur la case, puis à tout ce qu'on fait ensuite (prochain pas, prochaine énigme, prochain tirage), et s'éteint quand la salle suivante est posée. |
+| Placement | Les **emplacements sont écrits dans les plans** (symbole `?`) : 2 au premier étage, 3 au deuxième, 4 au troisième. Les **effets sont tirés par la graine** au chargement de l'étage. |
+| Terrain | Comme les murs, ces cases sont liées au terrain : **les gemmes ne les déplacent pas**, seules les salles glissent au-dessus. |
+
+Premier lot de 8 effets, réparti entre bonus, interdictions et malus :
+
+| Catégorie | Effet | Ce qu'il fait |
+| --- | --- | --- |
+| Bonus | Passe libre | La prochaine salle où l'on entre ne coûte aucun pas. |
+| Bonus | Filon | +3 pièces à l'arrivée. |
+| Bonus | Clé oubliée | +1 sceau à l'arrivée. |
+| Interdiction (révélée au choix) | Interdit de couleur | Ici, pas de salle d'une couleur tirée au sort. Les cartes concernées sont grisées. |
+| Interdiction (révélée au choix) | Pas de cul-de-sac | Ici, la salle posée doit avoir au moins une sortie. |
+| Malus | Brouillard | Les jokers sont coupés jusqu'à la prochaine salle posée. |
+| Malus | Serrure grippée | La prochaine porte est d'un niveau plus dur (3 au maximum). |
+| Malus | Éboulis | −2 pas à l'arrivée. |
+
+Garde-fou : si toutes les cartes tirées sont interdites, l'interdiction est levée pour ne jamais bloquer le joueur.
+
+Idées gardées pour plus tard : Sablier (+10 secondes à la prochaine énigme), Dé oublié (+1 dé), Tirage réduit (2 cartes au prochain tirage), Thème imposé (thème tiré au sort pour la prochaine énigme).
+
 ### 3.4 Les graines
 
 - Une **graine aléatoire**, toujours affichée et copiable, pour rejouer ou partager une partie.
@@ -142,7 +171,8 @@ Chaque étape se teste seule.
 2. **L'économie** (fait). Monnaie, récompenses, Boutique, retrait, plafond de 15.
 3. **Les jokers** (fait). Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement. C'est là que vivent les effets de voisinage entre salles de même couleur.
 4. **Les niveaux** (fait). Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages avec pas propres à chaque plan.
-5. **La progression entre parties.** Cartes et jokers débloqués par des exploits, joker fétiche, écran des graines et défi du jour complets.
+5. **Les cases spéciales.** Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée.
+6. **La progression entre parties.** Cartes et jokers débloqués par des exploits, joker fétiche, écran des graines et défi du jour complets.
 
 Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
