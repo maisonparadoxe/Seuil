@@ -289,6 +289,26 @@
     return typeof d === "function" ? d(e) : d;
   };
 
+  // Mode libre : la graine mélange l'ordre des quatre règles optionnelles ; les k premières sont actives.
+  const REGLES_OPTIONNELLES = ["murs", "jokers", "cases", "gemmes"];
+  const NOMS_REGLES = { murs: "Murs et salles fixes", jokers: "Jokers", cases: "Cases spéciales", gemmes: "Gemmes" };
+  const PALIER_DE_REGLE = { murs: 2, jokers: 3, cases: 4, gemmes: 5 };
+  function ordreDesRegles(seed) {
+    const rng = mulberry32(hachage("ordre-regles|" + seed));
+    const a = REGLES_OPTIONNELLES.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function reglesLibres(seed, k) {
+    const r = { murs: false, jokers: false, cases: false, gemmes: false };
+    ordreDesRegles(seed).slice(0, k).forEach((id) => (r[id] = true));
+    return r;
+  }
+  let libreK = 2; // nombre de règles actives choisi dans le menu
+
   const reglesDe = (n) => ({ murs: n >= 2, jokers: n >= 3, cases: n >= 4, gemmes: n >= 5 });
   const RATIO_PAS = { 0: 5.6, 1: 5.6, 2: 5.3, 3: 5.0 }; // pas = ratio × distance la plus courte, selon les règles actives
   const palierDe = (n) => PALIERS.find((p) => p.n === n);
@@ -636,13 +656,15 @@
     } catch (e) {}
   }
 
-  function nouvellePartie(graine, palier) {
+  function nouvellePartie(graine, palier, libre) {
     const seed = normaliserGraine(graine) || graineAleatoire();
     const n = palier || 1;
+    const enLibre = typeof libre === "number";
     G = {
       seed,
-      palier: n,
-      regles: reglesDe(n),
+      palier: enLibre ? 0 : n,
+      libre: enLibre ? { k: libre, ordre: ordreDesRegles(seed) } : null,
+      regles: enLibre ? reglesLibres(seed, libre) : reglesDe(n),
       nouveauPalier: 0,
       deck: [],
       pioche: [],
@@ -759,7 +781,10 @@
   // n effets répartis entre bonus, interdictions et malus : toujours un bonus d'abord, puis un mélange
   function tirerEffets(n) {
     const par = { bonus: [], interdiction: [], malus: [] };
-    Object.keys(ENVIRONNEMENTS).forEach((id) => par[ENVIRONNEMENTS[id].cat].push(id));
+    Object.keys(ENVIRONNEMENTS).forEach((id) => {
+      if (id === "brouillard" && !G.regles.jokers) return; // sans jokers, le Brouillard n'aurait aucun effet
+      par[ENVIRONNEMENTS[id].cat].push(id);
+    });
     const ordre = ["bonus"].concat(shuffle(["interdiction", "malus"]));
     const pris = new Set();
     const out = [];
@@ -1402,15 +1427,17 @@
       s.wins = (s.wins || 0) + 1;
       if (G.steps > (s.best || 0)) s.best = G.steps;
       // Une victoire débloque le palier suivant
-      const P = paliers();
-      P.gagnes[G.palier] = true;
-      const suiv = palierSuivant(G.palier);
-      if (suiv && suiv > P.max) {
-        P.max = suiv;
-        G.nouveauPalier = suiv;
-        palierChoisi = suiv; // le menu propose désormais le palier tout juste débloqué
+      if (!G.libre) {
+        const P = paliers();
+        P.gagnes[G.palier] = true;
+        const suiv = palierSuivant(G.palier);
+        if (suiv && suiv > P.max) {
+          P.max = suiv;
+          G.nouveauPalier = suiv;
+          palierChoisi = suiv; // le menu propose désormais le palier tout juste débloqué
+        }
+        sauverPaliers(P);
       }
-      sauverPaliers(P);
       son("tampon");
     } else {
       son("rature");
@@ -1875,7 +1902,7 @@
     if (!G) return (app.innerHTML = menuHTML());
     app.innerHTML = `
       <header class="entete">
-        <div class="titre-mini"><span class="marque">Bureau des affaires occultes</span><h1>SEUIL</h1><span class="palier-tag">Palier ${G.palier} · ${esc(palierDe(G.palier).nom)}</span></div>
+        <div class="titre-mini"><span class="marque">Bureau des affaires occultes</span><h1>SEUIL</h1><span class="palier-tag">${G.libre ? "Mode libre · " + G.libre.k + " règle" + (G.libre.k > 1 ? "s" : "") : "Palier " + G.palier + " · " + esc(palierDe(G.palier).nom)}</span></div>
         <div class="entete-btns">
           <button class="petit" data-act="rules" title="Règles">?</button>
           <button class="petit" data-act="sound" title="Son">${muet ? "🔇" : "🔊"}</button>
@@ -1968,6 +1995,10 @@
         <div class="menu-liste">
           <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition · palier ${sel}</span><span class="menu-sub">${esc(palierDe(sel).nom)} : trois étages, un deck de 8 salles, un serrurier à retrouver</span></button>
           <button class="menu-item" data-act="daily"${complet ? "" : " disabled"}><span class="menu-label">Défi du jour</span><span class="menu-sub">${complet ? "Le jeu complet, la même partie pour tout le monde aujourd'hui" : "Disponible quand tous les paliers sont débloqués"}</span></button>
+          <div class="menu-item libre-bloc${complet ? "" : " off"}">
+            <button class="libre-lancer" data-act="libre"${complet ? "" : " disabled"}><span class="menu-label">Mode libre</span><span class="menu-sub">${complet ? "La graine tire l'ordre des règles ; choisissez combien sont actives (0 à 4)" : "Disponible quand tous les paliers sont débloqués"}</span></button>
+            ${complet ? `<div class="libre-k" role="group" aria-label="Nombre de règles actives">${[0, 1, 2, 3, 4].map((k) => `<button class="chip${k === libreK ? " sel" : ""}" data-act="libre-k" data-k="${k}" aria-pressed="${k === libreK}">${k}</button>`).join("")}<span class="libre-legende">règle${libreK > 1 ? "s" : ""} active${libreK > 1 ? "s" : ""}</span></div>` : ""}
+          </div>
           <button class="menu-item" data-act="exploits"><span class="menu-label">Exploits · ${EXPLOITS.filter((e) => exploitFait(e.id)).length}/${EXPLOITS.length}</span><span class="menu-sub">Ce qu'il reste à accomplir pour débloquer salles et jokers</span></button>
           <button class="menu-item" data-act="rules"><span class="menu-label">Comment jouer</span><span class="menu-sub">Les règles du palier ${sel}</span></button>
         </div>
@@ -2157,6 +2188,23 @@
       <div class="boutons"><button class="btn principal" data-act="close">Fermer</button></div>`, "regle-modal");
   }
 
+  // « 2 règles sur 4 : Gemmes, Jokers (ordre tiré : Gemmes, Jokers, Murs et salles fixes, Cases spéciales) »
+  function libreResume(L) {
+    const actives = L.ordre.slice(0, L.k).map((id) => NOMS_REGLES[id]);
+    return (L.k ? L.k + " règle" + (L.k > 1 ? "s" : "") + " sur 4 : " + actives.join(", ") : "jeu de base, aucune règle en plus") + ". Ordre tiré par la graine : " + L.ordre.map((id) => NOMS_REGLES[id]).join(", ") + ".";
+  }
+
+  function modaleLibreIntro() {
+    const L = G.libre;
+    afficherModale(`
+      <p class="modal-sur">Mode libre · graine ${esc(G.seed)}</p>
+      <h2>${L.k ? L.k + " règle" + (L.k > 1 ? "s" : "") + " en plus du jeu de base" : "Le jeu de base"}</h2>
+      <p>La graine a tiré l'ordre des règles : <b>${L.ordre.map((id, i) => (i < L.k ? "<u>" + NOMS_REGLES[id] + "</u>" : NOMS_REGLES[id])).join(" · ")}</b>. Les règles actives sont soulignées.</p>
+      <ul class="regles-libre">${L.ordre.slice(0, L.k).map((id) => `<li><b>${NOMS_REGLES[id]}</b> : ${esc(palierDe(PALIER_DE_REGLE[id]).resume)}</li>`).join("")}</ul>
+      <p class="note-deck">Les explications complètes sont dans « Comment jouer ». Même graine et même nombre de règles : même partie.</p>
+      <div class="boutons"><button class="btn principal" data-act="close">En avant</button></div>`, "regle-modal");
+  }
+
   function modaleFin() {
     const win = G.over === "win";
     const titre = win ? "Vous êtes sorti vivant… et arrivé." : G.over === "steps" ? "Plus un pas." : "Il n'y a plus de porte.";
@@ -2166,7 +2214,7 @@
       ? "Vos pas sont comptés, et ils sont finis. Les Gardiens referment le seuil. Le labyrinthe se recompose : la prochaine fois, ses portes seront ailleurs."
       : "Toutes les portes ouvertes ne mènent nulle part, et toutes les autres sont condamnées. Le labyrinthe vous garde.";
     afficherModale(`
-      <p class="modal-sur">${win ? "Fin de l'expédition" : "Expédition terminée"} · palier ${G.palier}</p>
+      <p class="modal-sur">${win ? "Fin de l'expédition" : "Expédition terminée"} · ${G.libre ? "mode libre" : "palier " + G.palier}</p>
       <h2 class="${win ? "ok" : "ko"}">${titre}</h2>
       <p>${texte}</p>
       <ul class="bilan">
@@ -2180,6 +2228,7 @@
       </ul>
       ${exploitsFinHTML()}
       ${fetichesFinHTML()}
+      ${G.libre ? `<p class="note-deck">Mode libre : ${libreResume(G.libre)}</p>` : ""}
       ${G.nouveauPalier ? nouvelleRegleHTML(G.nouveauPalier) : ""}
       <div class="boutons">
         ${G.nouveauPalier ? `<button class="btn principal" data-act="palier-suivant">Jouer le palier ${G.nouveauPalier}</button>` : ""}
@@ -2312,11 +2361,17 @@
   }
 
   // Lance une partie au palier n ; au premier lancement d'un palier, on explique sa règle.
-  function demarrer(graine, palier) {
+  function demarrer(graine, palier, libre) {
     fermerModale();
-    nouvellePartie(graine, palier);
+    nouvellePartie(graine, palier, libre);
     son("page-journal");
     render();
+    if (typeof libre === "number") {
+      log("Mode libre : " + libreResume(G.libre));
+      render();
+      modaleLibreIntro();
+      return;
+    }
     const P = paliers();
     if (!P.vus[palier]) {
       P.vus[palier] = true;
@@ -2372,10 +2427,10 @@
     li.push("<b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.");
     const n = G ? G.palier : palierEffectif();
     afficherModale(`
-      <p class="modal-sur">Comment jouer · palier ${n}</p>
+      <p class="modal-sur">Comment jouer · ${G && G.libre ? "mode libre" : "palier " + n}</p>
       <h2>Règles de l'expédition</h2>
       <ol class="regles">${li.map((x) => `<li>${x}</li>`).join("")}</ol>
-      <p class="note-deck">D'autres règles se débloquent au fil des paliers, en gagnant des expéditions.</p>
+      <p class="note-deck">${G && G.libre ? libreResume(G.libre) : "D'autres règles se débloquent au fil des paliers, en gagnant des expéditions."}</p>
       <div class="boutons"><button class="btn principal" data-act="close">Compris</button></div>`, "regles");
   }
 
@@ -2394,6 +2449,11 @@
         const champ = document.getElementById("graine");
         let graine = champ ? champ.value : "";
         let palier = G ? G.palier : palierEffectif();
+        if (G && G.libre && act !== "daily" && act !== "palier-suivant") {
+          if (act === "replay") graine = G.seed;
+          demarrer(graine, 0, G.libre.k);
+          break;
+        }
         if (act === "daily") {
           if (paliers().max < dernierPalierPret()) break;
           graine = graineDuJour();
@@ -2422,6 +2482,17 @@
       case "exploits":
         modaleExploits();
         break;
+      case "libre-k":
+        libreK = parseInt(el.getAttribute("data-k"), 10);
+        son("clic");
+        render();
+        break;
+      case "libre": {
+        if (paliers().max < dernierPalierPret()) break;
+        const champ = document.getElementById("graine");
+        demarrer(champ ? champ.value : "", 0, libreK);
+        break;
+      }
       case "fetiche": {
         if (!G || G.over !== "win") break;
         const id = el.getAttribute("data-id");
@@ -2642,5 +2713,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

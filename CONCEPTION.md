@@ -193,14 +193,15 @@ Chaque étape se teste seule.
 4. **Les niveaux** (fait). Plans en texte, murs et salles fixes, décalage adapté, trois étages.
 5. **Les paliers** (fait). La liste de règles actives, la sauvegarde des paliers débloqués, l'écran de choix du palier, le raccourci « tout débloquer », le filtrage des cartes et des jokers qui dépendent d'une règle éteinte. On la fait **avant** les cases spéciales, pour que celles-ci naissent déjà derrière leur interrupteur.
 6. **Les cases spéciales** (fait). Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée. Palier 4.
-7. **Le reste de la progression.** *7a faite : exploits et cartes/jokers à débloquer. 7b faite : joker fétiche.* Reste : mode libre à l'ordre tiré par la graine, défi du jour complet. (Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.)
+7. **Le reste de la progression.** *7a faite : exploits et cartes/jokers à débloquer. 7b faite : joker fétiche. 7c faite : mode libre.* (Le défi du jour complet existait déjà depuis l'étape 5.) (Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.)
 
 Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
 ## 5 bis. Avancement
 
+- **Étape 7c : mode libre, faite** (voir plus bas). L'étape 7 est terminée.
 - **Étape 7b : joker fétiche, faite** (voir plus bas).
-- **Étape 7a : exploits et déblocages, faite** (voir plus bas). Reste 7c (mode libre, défi du jour complet).
+- **Étape 7a : exploits et déblocages, faite** (voir plus bas). 
 - **Étape 6 : les cases spéciales, faite** (voir plus bas).
 - **Étape 5 : les paliers, faite** (voir plus bas).
 - **Étape 4 : les niveaux, faite** (voir plus bas).
@@ -317,6 +318,16 @@ Vérifié par des tests automatiques : menu et carnet, cartes verrouillées abse
 - **Menu.** Le fétiche y est affiché, avec « l'abandonner ». « Recommencer la progression » l'efface aussi. Sauvegarde : `seuil-fetiche`.
 
 Vérifié par des tests automatiques : choix à la victoire, sauvegarde, présence au départ suivant, vente refusée en boutique, remplacement, aucun choix après une défaite, aucun effet au palier sans jokers, abandon ; et toutes les anciennes suites.
+
+### Étape 7c : le mode libre (faite)
+
+- **Principe.** Disponible quand tous les paliers sont débloqués. La graine mélange l'ordre des quatre règles optionnelles (murs et salles fixes, jokers, cases spéciales, gemmes) ; un sélecteur de 0 à 4 choisit combien sont actives, dans cet ordre. Même graine et même nombre : même partie.
+- **Garde-fous.** Une règle éteinte disparaît complètement, comme aux paliers. Sans jokers, le Brouillard (effet de case spéciale) n'est pas tiré ; sans gemmes, les jokers et salles de gemmes sont filtrés comme avant.
+- **Sans progression de palier.** Une victoire en mode libre ne débloque rien (les exploits et le joker fétiche fonctionnent comme d'habitude). « Même graine » et « Nouvelle graine » gardent le mode et le nombre de règles.
+- **Explication.** Au départ, une fenêtre annonce l'ordre tiré et rappelle les règles actives ; le bandeau de la partie et l'écran de fin le résument.
+- **Défi du jour.** Inchangé : le jeu complet, même partie pour tout le monde.
+
+Vérifié par des tests automatiques : verrouillage tant que tout n'est pas débloqué, ordre (permutation, stable, varié), k = 0 à 4 avec chaque règle éteinte réellement absente, déterminisme, victoire sans déblocage, rejouer, défi du jour intact ; et toutes les anciennes suites.
 
 ## 6. Risques à surveiller
 

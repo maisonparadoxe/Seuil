@@ -490,3 +490,12 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .fetiche-choix { display: flex; flex-wrap: wrap; gap: 6px; }
 .fetiche-btn { font-size: 14px; padding: 6px 10px; }
 .fetiche-btn.sel { border-color: var(--stamp-red); box-shadow: 0 0 0 2px var(--stamp-red); }
+
+/* Mode libre (étape 7c) */
+.libre-bloc { padding: 0; }
+.libre-bloc .libre-lancer { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; text-align: left; background: none; border: 0; font: inherit; color: inherit; cursor: pointer; }
+.libre-bloc.off { opacity: 0.55; }
+.libre-k { display: flex; align-items: center; gap: 6px; padding: 0 12px 10px; }
+.libre-k .chip.sel { border-color: var(--stamp-red); box-shadow: 0 0 0 2px var(--stamp-red); }
+.libre-legende { font-size: 12px; color: var(--ink-soft); margin-left: 4px; }
+.regles-libre { margin: 6px 0; padding-left: 18px; font-size: 14px; }
