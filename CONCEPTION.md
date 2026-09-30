@@ -193,12 +193,13 @@ Chaque étape se teste seule.
 4. **Les niveaux** (fait). Plans en texte, murs et salles fixes, décalage adapté, trois étages.
 5. **Les paliers** (fait). La liste de règles actives, la sauvegarde des paliers débloqués, l'écran de choix du palier, le raccourci « tout débloquer », le filtrage des cartes et des jokers qui dépendent d'une règle éteinte. On la fait **avant** les cases spéciales, pour que celles-ci naissent déjà derrière leur interrupteur.
 6. **Les cases spéciales** (fait). Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée. Palier 4.
-7. **Le reste de la progression.** Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.
+7. **Le reste de la progression.** *7a faite : exploits et cartes/jokers à débloquer.* Reste : joker fétiche, mode libre à l'ordre tiré par la graine, défi du jour complet. (Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.)
 
 Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
 ## 5 bis. Avancement
 
+- **Étape 7a : exploits et déblocages, faite** (voir plus bas). Restent 7b (joker fétiche) et 7c (mode libre).
 - **Étape 6 : les cases spéciales, faite** (voir plus bas).
 - **Étape 5 : les paliers, faite** (voir plus bas).
 - **Étape 4 : les niveaux, faite** (voir plus bas).
@@ -298,6 +299,15 @@ Vérifié par des tests automatiques : verrouillage au départ, texte du palier 
 - **Interface.** Case dorée avec « ? » puis pastille de l'icône une fois révélée ; carte « Environnement » dans le panneau ; jokers grisés dans le brouillard ; mention dans la modale de porte pour la serrure grippée ; puce dans « Comment jouer ».
 
 Vérifié par des tests automatiques : nombre et placement des `?` sur les 9 plans, tirage des effets (bonus d'abord, distincts, les 8 apparaissent), déterminisme par graine, aucune case au palier 3, chacun des huit effets, déclenchement unique, gemmes sans effet sur les cases, chaîne de déblocage 1 → 5 ; et toutes les anciennes suites.
+
+### Étape 7a : exploits et déblocages (faite)
+
+- **Pool de départ.** Moitié verrouillée : 8 salles (Reliquaire, Forge froide, Salle du sablier, Puits aux salamandres, Sanctuaire, Archives, Fresque des Gardiens, Cabinet du serrurier) et 7 jokers (Quatrième main, Second souffle, Alambic, Sablier fêlé, Pacte du fondeur, Poing des Gardiens, Boussole du nord). Les cartes verrouillées n'apparaissent ni en récompense ni en boutique.
+- **15 exploits, un par carte.** Chambre du 1ᵉʳ étage → Sablier · étage sans porte condamnée → Cabinet · 10 énigmes → Archives · 12 salles posées → Puits · gagner → Sanctuaire · 4 énigmes Mots → Fresque · acheter 3 cartes → Forge · gagner avec 8 cartes ou moins → Reliquaire · 15 pièces en même temps → Alambic · 4 énigmes de niveau 3 → Second souffle · étage sans dé ni sceau → Boussole · étage fini avec 15 pas restants → Quatrième main · acheter 2 jokers → Pacte · 3 énigmes en moins de 8 s → Sablier fêlé · 3 gemmes utilisées → Poing.
+- **Fonctionnement.** Les exploits se valident à tout palier et même dans une partie perdue ; ils sont enregistrés dans le navigateur (`seuil-exploits`). Une bulle et le journal les annoncent, l'écran de fin les récapitule. Le menu a un carnet des exploits (n/15) qui montre ce que chacun débloque. « Tout débloquer » ouvre aussi tous les exploits ; « Recommencer » les efface.
+- **Aucune carte nouvelle à écrire** pour ce lot : les 15 déblocages sont des cartes et jokers existants.
+
+Vérifié par des tests automatiques : menu et carnet, cartes verrouillées absentes de 500 offres de salles et 300 de jokers, les 15 exploits (condition juste, pas avant), sauvegarde, entrée dans les pools, défaite qui valide quand même, rechargement, « tout débloquer » et « recommencer » ; et toutes les anciennes suites.
 
 ## 6. Risques à surveiller
 

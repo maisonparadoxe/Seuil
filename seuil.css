@@ -471,3 +471,13 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .modal.regle-modal .modal-boite { max-width: 520px; }
 .menu-item:disabled { opacity: 0.5; cursor: default; }
 @media (max-width: 520px) { .menu-sal { height: 90px; } .menu-titre { font-size: 48px; } .menu-inner { padding: 20px 14px; gap: 8px; } }
+
+/* Exploits (étape 7) */
+.exploits { list-style: none; margin: 8px 0; padding: 0; max-height: 46vh; overflow-y: auto; }
+.exploits li { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px dashed rgba(0, 0, 0, 0.2); font-size: 14px; line-height: 1.35; }
+.exploits li.fait { opacity: 0.65; }
+.exploits .ex-etat { flex: 0 0 auto; width: 1.4em; font-size: 18px; color: var(--stamp-red); }
+.exploits em { font-size: 12.5px; color: var(--ink-soft); }
+.exploits-fin { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--gold); background: rgba(185, 139, 42, 0.12); }
+.exploits-fin h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 16px; font-weight: 400; }
+.exploits-fin ul { margin: 0; padding-left: 18px; font-size: 13.5px; }

@@ -297,6 +297,62 @@
     const p = PALIERS.find((x) => x.n > n && x.pret);
     return p ? p.n : 0;
   };
+  // ---- Exploits : chacun débloque une carte (salle) ou un joker, pour toujours ----
+  // ev : "tick" (n'importe quand), "etage" (Chambre d'un étage atteinte), "win" (Chambre du dernier étage)
+  const finDEtage = (ev) => ev === "etage" || ev === "win";
+  const EXPLOITS = [
+    { id: "premiere", nom: "Première Chambre", desc: "Atteindre la Chambre du 1er étage.", cle: { type: "salle", id: "sablier" }, ok: (g, ev) => finDEtage(ev) && g.etage === 1 || ev === "win" },
+    { id: "sans-condamner", nom: "Serrurier consciencieux", desc: "Finir un étage sans condamner une seule porte.", cle: { type: "salle", id: "cabinet" }, ok: (g, ev) => finDEtage(ev) && g.stat.condamnesEtage === 0 },
+    { id: "dix-enigmes", nom: "Esprit délié", desc: "Résoudre 10 énigmes en une partie.", cle: { type: "salle", id: "archives" }, ok: (g) => g.solved >= 10 },
+    { id: "douze-salles", nom: "Bâtisseur", desc: "Poser 12 salles en une partie.", cle: { type: "salle", id: "puits" }, ok: (g) => g.rooms - 1 >= 12 },
+    { id: "victoire", nom: "Sortie des Gardiens", desc: "Gagner une partie.", cle: { type: "salle", id: "sanctuaire" }, ok: (g, ev) => ev === "win" },
+    { id: "mots", nom: "Bouche d'ombre", desc: "Résoudre 4 énigmes de Mots en une partie.", cle: { type: "salle", id: "fresque" }, ok: (g) => g.stat.mots >= 4 },
+    { id: "acheteur", nom: "Client fidèle", desc: "Acheter 3 cartes en une partie.", cle: { type: "salle", id: "forge" }, ok: (g) => g.achats >= 3 },
+    { id: "deck-mince", nom: "Léger bagage", desc: "Gagner avec 8 cartes ou moins dans le deck.", cle: { type: "salle", id: "reliquaire" }, ok: (g, ev) => ev === "win" && g.deck.length <= 8 },
+    { id: "fortune", nom: "Bourse pleine", desc: "Avoir 15 pièces en même temps.", cle: { type: "joker", id: "alambic" }, ok: (g) => g.coins >= 15 },
+    { id: "niveau3", nom: "Nerfs d'acier", desc: "Résoudre 4 énigmes de niveau 3 en une partie.", cle: { type: "joker", id: "souffle" }, ok: (g) => g.stat.niv3 >= 4 },
+    { id: "sans-des", nom: "Ni dé ni sceau", desc: "Finir un étage sans utiliser de dé ni de sceau.", cle: { type: "joker", id: "boussole" }, ok: (g, ev) => finDEtage(ev) && g.stat.deEtage === 0 },
+    { id: "pas-restants", nom: "Sans hâte", desc: "Finir un étage avec au moins 15 pas restants.", cle: { type: "joker", id: "main4" }, ok: (g, ev) => finDEtage(ev) && g.steps >= 15 },
+    { id: "jokers", nom: "Collectionneur", desc: "Acheter 2 jokers en une partie.", cle: { type: "joker", id: "pacte" }, ok: (g) => g.stat.jokersAchetes >= 2 },
+    { id: "eclair", nom: "Réflexes", desc: "Résoudre 3 énigmes en moins de 8 secondes chacune, en une partie.", cle: { type: "joker", id: "sablier2" }, ok: (g) => g.stat.rapides >= 3 },
+    { id: "gemmes", nom: "Lapidaire", desc: "Utiliser 3 gemmes en une partie.", cle: { type: "joker", id: "poing" }, ok: (g) => g.stat.gemmes >= 3 },
+  ];
+  function exploits() {
+    try {
+      const p = JSON.parse(localStorage.getItem("seuil-exploits") || "{}");
+      return { faits: p.faits || {}, tout: !!p.tout };
+    } catch (e) {
+      return { faits: {}, tout: false };
+    }
+  }
+  function sauverExploits(x) {
+    try {
+      localStorage.setItem("seuil-exploits", JSON.stringify(x));
+    } catch (e) {}
+  }
+  const exploitFait = (id) => {
+    const x = exploits();
+    return x.tout || !!x.faits[id];
+  };
+  const carteVerrouillee = (type, id) => EXPLOITS.some((e) => e.cle.type === type && e.cle.id === id && !exploitFait(e.id));
+  const salleVerrouillee = (id) => carteVerrouillee("salle", id);
+  const jokerVerrouille = (id) => carteVerrouillee("joker", id);
+  const nomRecompense = (cle) => (cle.type === "salle" ? "la salle « " + SALLES_PAR_ID[cle.id].nom + " »" : "le joker « " + JOKERS_PAR_ID[cle.id].icone + " " + JOKERS_PAR_ID[cle.id].nom + " »");
+
+  // Vérifie les exploits non encore accomplis (appelé à chaque affichage et aux fins d'étage).
+  function controler(ev) {
+    if (!G) return;
+    const x = exploits();
+    EXPLOITS.forEach((e) => {
+      if (x.tout || x.faits[e.id] || !e.ok(G, ev || "tick")) return;
+      x.faits[e.id] = true;
+      sauverExploits(x);
+      G.nouveauxExploits.push(e.id);
+      log("🏆 Exploit : " + e.nom + ". Débloque " + nomRecompense(e.cle) + ".");
+      toast("🏆 Exploit : " + e.nom + " — " + nomRecompense(e.cle) + " débloqué");
+    });
+  }
+
   function paliers() {
     try {
       const p = JSON.parse(localStorage.getItem("seuil-paliers") || "{}");
@@ -610,6 +666,8 @@
       rooms: 1,
       solved: 0,
       failed: 0,
+      stat: { mots: 0, niv3: 0, rapides: 0, jokersAchetes: 0, gemmes: 0, deEtage: 0, condamnesEtage: 0 },
+      nouveauxExploits: [],
       over: null,
       pending: null,
       draft: null,
@@ -651,6 +709,8 @@
       G.grid[f.r][f.c] = { tpl: SALLES_PAR_ID[f.id], doors: portesLibres(f.r, f.c), visited: false, fixe: true, theme: null };
     });
     // Cases spéciales : les emplacements viennent du plan, les effets sont tirés par la graine
+    G.stat.deEtage = 0;
+    G.stat.condamnesEtage = 0;
     G.speciales = {};
     G.envs = [];
     if (G.regles.cases && P.speciales.length) {
@@ -875,7 +935,7 @@
 
   // n cartes distinctes du pool (les salles pièges n'y figurent pas). Le hasard vient du flux courant.
   function offrir(n, forcer) {
-    const pool = SALLES.filter((t) => t.kind !== "trap" && copies(t.id) < (t.max || 99) && (G.regles.gemmes || !(t.fx && t.fx.gem))).map((t) => ({ t, w: t.w * (aJoker("sourcier") && t.fx && t.fx.gem ? 2 : 1) }));
+    const pool = SALLES.filter((t) => t.kind !== "trap" && !salleVerrouillee(t.id) && copies(t.id) < (t.max || 99) && (G.regles.gemmes || !(t.fx && t.fx.gem))).map((t) => ({ t, w: t.w * (aJoker("sourcier") && t.fx && t.fx.gem ? 2 : 1) }));
     const cartes = [];
     const ajouter = (t) => cartes.push({ id: t.id, theme: (t.doors || []).length ? pick(THEME_IDS) : null });
     if (forcer) {
@@ -943,7 +1003,7 @@
   // n jokers que le joueur n'a pas encore, tirés selon leur rareté (flux courant)
   function offrirJokers(n) {
     if (!G.regles.jokers) return [];
-    const pool = JOKERS.filter((j) => !aJoker(j.id) && !(j.requiert === "gemmes" && !G.regles.gemmes)).map((j) => ({ j, w: RARETES[j.rar].w }));
+    const pool = JOKERS.filter((j) => !aJoker(j.id) && !jokerVerrouille(j.id) && !(j.requiert === "gemmes" && !G.regles.gemmes)).map((j) => ({ j, w: RARETES[j.rar].w }));
     const ids = [];
     while (ids.length < n && pool.length) {
       let x = R() * pool.reduce((sum, e) => sum + e.w, 0), i = 0;
@@ -972,6 +1032,7 @@
     if (raisonJoker(j, it.prix)) return;
     G.coins -= it.prix;
     G.jokers.push(j.id);
+    G.stat.jokersAchetes += 1;
     B.jokers.splice(i, 1);
     if (j.id === "sablier2") G.steps = Math.max(1, G.steps - 3); // le prix du Sablier fêlé
     log("Joker acheté : " + j.icone + " " + j.nom + " (−" + it.prix + " pièces).");
@@ -1252,6 +1313,7 @@
   function relancer() {
     if (G.dice < 1) return;
     G.dice -= 1;
+    G.stat.deEtage += 1;
     const D = G.draft;
     defausserMain(D.cands);
     D.cands = tirage(D.d, D.tr, D.tc);
@@ -1285,6 +1347,7 @@
 
   function finEtage() {
     log("Étage " + G.etage + " terminé : la Chambre est atteinte avec " + G.steps + " pas restants.");
+    controler("etage");
     son("tampon");
     fermerModale();
     render();
@@ -1310,6 +1373,7 @@
     fermerModale();
     const s = stats();
     if (raison === "win") {
+      controler("win");
       s.wins = (s.wins || 0) + 1;
       if (G.steps > (s.best || 0)) s.best = G.steps;
       // Une victoire débloque le palier suivant
@@ -1387,6 +1451,9 @@
     const p = pz.puzzle;
     if (ok) {
       G.solved += 1;
+      if (P.theme === "mots") G.stat.mots += 1;
+      if (P.level === 3) G.stat.niv3 += 1;
+      if (pz.total - pz.restant < 8) G.stat.rapides += 1;
       D.status = "open";
       const base = GAIN_PORTE[P.level] || 0;
       const rapide = base && pz.restant > pz.total / 2 ? 1 : 0;
@@ -1408,6 +1475,7 @@
         declencher("souffle", "la porte n'est pas condamnée");
       } else {
         D.status = "blocked";
+        G.stat.condamnesEtage += 1;
         log("Énigme ratée (" + p.label.toLowerCase() + ") : la porte est condamnée pour cette partie.");
       }
       son("rature");
@@ -1419,6 +1487,7 @@
   function utiliserSceau() {
     if (G.seals < 1) return;
     G.seals -= 1;
+    G.stat.deEtage += 1;
     const P = G.pending;
     if (P.grippee) consommerGrippee();
     G.grid[P.r][P.c].door[P.d].status = "open";
@@ -1690,6 +1759,7 @@
         }
       }
     G.gems.splice(S.gi, 1);
+    G.stat.gemmes += 1;
     G.shift = null;
     const sens = H ? (k > 0 ? "vers la droite" : "vers la gauche") : k > 0 ? "vers le bas" : "vers le haut";
     log("Gemme " + (H ? "↔" : "↕") + " : " + (H ? "la ligne " : "la colonne ") + (i + 1) + " glisse de " + Math.abs(k) + " cran" + (Math.abs(k) > 1 ? "s" : "") + " " + sens + ".");
@@ -1773,6 +1843,7 @@
   }
 
   function render() {
+    if (G && !G.over) controler("tick");
     const app = document.getElementById("app");
     document.body.classList.toggle("menu-mode", !G);
     document.body.classList.toggle("tirage-ouvert", !!(G && G.draft));
@@ -1872,6 +1943,7 @@
         <div class="menu-liste">
           <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition · palier ${sel}</span><span class="menu-sub">${esc(palierDe(sel).nom)} : trois étages, un deck de 8 salles, un serrurier à retrouver</span></button>
           <button class="menu-item" data-act="daily"${complet ? "" : " disabled"}><span class="menu-label">Défi du jour</span><span class="menu-sub">${complet ? "Le jeu complet, la même partie pour tout le monde aujourd'hui" : "Disponible quand tous les paliers sont débloqués"}</span></button>
+          <button class="menu-item" data-act="exploits"><span class="menu-label">Exploits · ${EXPLOITS.filter((e) => exploitFait(e.id)).length}/${EXPLOITS.length}</span><span class="menu-sub">Ce qu'il reste à accomplir pour débloquer salles et jokers</span></button>
           <button class="menu-item" data-act="rules"><span class="menu-label">Comment jouer</span><span class="menu-sub">Les règles du palier ${sel}</span></button>
         </div>
         <p class="menu-foot">${esc(rec)}</p>
@@ -2022,6 +2094,29 @@
       <div class="boutons"><button class="btn principal" data-act="close">${n === 1 ? "Descendre" : "Compris, en avant"}</button></div>`, "regle-modal");
   }
 
+  function exploitsFinHTML() {
+    if (!G.nouveauxExploits.length) return "";
+    return `<div class="exploits-fin"><h3>🏆 Exploits accomplis</h3><ul>${G.nouveauxExploits
+      .map((id) => {
+        const e = EXPLOITS.find((x) => x.id === id);
+        return `<li><b>${esc(e.nom)}</b> : ${esc(e.desc)}<br><em>Débloque ${nomRecompense(e.cle)}.</em></li>`;
+      })
+      .join("")}</ul></div>`;
+  }
+
+  function modaleExploits() {
+    const n = EXPLOITS.filter((e) => exploitFait(e.id)).length;
+    afficherModale(`
+      <p class="modal-sur">Carnet des exploits · ${n}/${EXPLOITS.length}</p>
+      <h2>Exploits</h2>
+      <p>Chaque exploit débloque, pour toutes vos parties, une salle ou un joker qui rejoint les récompenses et les boutiques. Ils se valident même dans une partie perdue.</p>
+      <ul class="exploits">${EXPLOITS.map((e) => {
+        const fait = exploitFait(e.id);
+        return `<li class="${fait ? "fait" : ""}"><span class="ex-etat">${fait ? "✓" : "○"}</span><span class="ex-txt"><b>${esc(e.nom)}</b><br>${esc(e.desc)}<br><em>${fait ? "Débloqué : " : "Débloque : "}${nomRecompense(e.cle)}</em></span></li>`;
+      }).join("")}</ul>
+      <div class="boutons"><button class="btn principal" data-act="close">Fermer</button></div>`, "regle-modal");
+  }
+
   function modaleFin() {
     const win = G.over === "win";
     const titre = win ? "Vous êtes sorti vivant… et arrivé." : G.over === "steps" ? "Plus un pas." : "Il n'y a plus de porte.";
@@ -2043,6 +2138,7 @@
         <li><b>${G.coins}</b> pièces, <b>${G.deck.length}</b> cartes dans le deck</li>
         <li><b>${G.fragments}/${FRAGMENTS.length}</b> fragments du carnet</li>
       </ul>
+      ${exploitsFinHTML()}
       ${G.nouveauPalier ? nouvelleRegleHTML(G.nouveauPalier) : ""}
       <div class="boutons">
         ${G.nouveauPalier ? `<button class="btn principal" data-act="palier-suivant">Jouer le palier ${G.nouveauPalier}</button>` : ""}
@@ -2227,6 +2323,7 @@
     li.push("<b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.");
     li.push("<b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.");
     if (R2.jokers) li.push("<b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi" + (R2.gemmes ? ", gemmes plus puissantes" : "") + "... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.");
+    li.push("<b>Exploits.</b> Au début, la moitié des salles et des jokers sont verrouillés. Chaque exploit (finir un étage sans condamner de porte, gagner avec un petit deck...) en débloque un pour toujours. Le carnet des exploits est dans le menu ; ils se valident même dans une partie perdue.");
     li.push("<b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.");
     if (R2.gemmes) li.push("<b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes, les murs et la salle où vous vous trouvez ne bougent pas : les autres salles de la ligne glissent en les sautant. Il faut au moins une salle mobile dans la ligne ; sinon la gemme est grisée. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.");
     if (R2.cases) li.push("<b>Cases spéciales « ? ».</b> Certaines cases du plan cachent un environnement : bonus (pas gratuit, pièces, sceau), interdiction de pose (une couleur, les culs-de-sac) ou malus (jokers coupés, porte plus dure, pas perdus). L'effet se révèle quand vous y arrivez (les interdictions, quand vous ouvrez la porte vers la case) et dure jusqu'à la prochaine salle posée. Les gemmes ne déplacent pas ces cases.");
@@ -2277,10 +2374,16 @@
         afficherModale(`
           <p class="modal-sur">Progression</p>
           <h2>Tout débloquer ?</h2>
-          <p>Tous les paliers seront débloqués d'un coup, y compris le défi du jour. Vous perdrez les explications qui accompagnent chaque nouvelle règle. Elles restent lisibles dans « Comment jouer ».</p>
+          <p>Tous les paliers et tous les exploits (donc toutes les salles et tous les jokers) seront débloqués d'un coup, y compris le défi du jour. Vous perdrez les explications qui accompagnent chaque nouvelle règle. Elles restent lisibles dans « Comment jouer ».</p>
           <div class="boutons"><button class="btn principal" data-act="tout-debloquer-oui">Oui, tout débloquer</button><button class="btn lien" data-act="close">Annuler</button></div>`, "regle-modal");
         break;
+      case "exploits":
+        modaleExploits();
+        break;
       case "tout-debloquer-oui": {
+        const X = exploits();
+        EXPLOITS.forEach((e) => (X.faits[e.id] = true));
+        sauverExploits(X);
         const P = paliers();
         P.max = dernierPalierPret();
         PALIERS.forEach((p) => (P.vus[p.n] = true));
@@ -2294,10 +2397,11 @@
         afficherModale(`
           <p class="modal-sur">Progression</p>
           <h2>Recommencer la progression ?</h2>
-          <p>Les paliers débloqués et les explications déjà lues seront effacés : vous repartirez du palier 1. Vos records restent.</p>
+          <p>Les paliers débloqués, les exploits accomplis et les explications déjà lues seront effacés : vous repartirez du palier 1. Vos records restent.</p>
           <div class="boutons"><button class="btn principal" data-act="reinit-paliers-oui">Oui, recommencer</button><button class="btn lien" data-act="close">Annuler</button></div>`, "regle-modal");
         break;
       case "reinit-paliers-oui":
+        sauverExploits({ faits: {} });
         sauverPaliers({ max: 1, gagnes: {}, vus: {} });
         palierChoisi = 0;
         fermerModale();
@@ -2480,5 +2584,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();
