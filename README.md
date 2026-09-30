@@ -27,4 +27,6 @@ Les **jokers** sont des règles passives (temps en plus, pièces en plus, tirage
 
 Une partie est une **suite de trois étages**. Chaque étage a son plan (tiré par la graine), avec des murs et parfois une salle fixe (📌), son nombre de pas et des portes de plus en plus dures. Vous gardez votre deck, vos jokers et vos pièces d'un étage à l'autre ; un marchand vous attend entre deux étages.
 
+Les règles arrivent **par paliers** : le palier 1 est le jeu de base (énigmes, deck, pièces, boutique) ; gagner une expédition débloque le palier suivant (murs et salles fixes, puis jokers, puis gemmes), avec une explication de chaque nouvelle règle. Un raccourci « tout débloquer » permet d'aller directement au jeu complet, et le défi du jour se joue au jeu complet.
+
 La conception complète est dans `CONCEPTION.md`.

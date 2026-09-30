@@ -174,11 +174,11 @@
   const JOKERS = [
     { id: "loupe", nom: "Loupe de Valcourt", rar: "commun", famille: "Énigmes", icone: "🔍", desc: "+5 secondes à chaque énigme." },
     { id: "piece", nom: "Pièce fêlée", rar: "commun", famille: "Économie", icone: "🪙", desc: "+1 pièce à chaque énigme résolue." },
-    { id: "sourcier", nom: "Baguette de sourcier", rar: "commun", famille: "Gemmes", icone: "🌿", desc: "Les salles à gemmes apparaissent deux fois plus souvent en récompense et en boutique." },
+    { id: "sourcier", nom: "Baguette de sourcier", rar: "commun", famille: "Gemmes", requiert: "gemmes", icone: "🌿", desc: "Les salles à gemmes apparaissent deux fois plus souvent en récompense et en boutique." },
     { id: "craie", nom: "Craie du géomètre", rar: "commun", famille: "Plan", icone: "📐", desc: "Poser une salle contre une salle de même couleur rapporte 1 pièce." },
     { id: "sacoche", nom: "Sacoche du serrurier", rar: "peu", famille: "Deck", icone: "👜", desc: "+3 au plafond du deck." },
     { id: "cle", nom: "Clé à quatre dents", rar: "peu", famille: "Tirage", icone: "🗝", desc: "Une fois sur 3, une salle à 4 portes s'ajoute à votre tirage. Elle n'entre pas dans votre deck." },
-    { id: "ciseau", nom: "Ciseau de lapidaire", rar: "peu", famille: "Gemmes", icone: "💎", desc: "Vos gemmes décalent de 1 ou 2 crans, même les gemmes courantes." },
+    { id: "ciseau", nom: "Ciseau de lapidaire", rar: "peu", famille: "Gemmes", requiert: "gemmes", icone: "💎", desc: "Vos gemmes décalent de 1 ou 2 crans, même les gemmes courantes." },
     { id: "boussole", nom: "Boussole du nord", rar: "peu", famille: "Tirage", icone: "🧭", desc: "Chaque tirage contient, si votre deck le permet, une salle avec une porte en face de vous." },
     { id: "sentier", nom: "Sentier de couleur", rar: "peu", famille: "Pas", icone: "🌈", desc: "En entrant dans une salle de même couleur que celle que vous quittez, 50 % de chance que le pas ne coûte rien." },
     { id: "main4", nom: "Quatrième main", rar: "rare", famille: "Tirage", icone: "🖐", desc: "Vous tirez 4 cartes au lieu de 3." },
@@ -186,7 +186,7 @@
     { id: "alambic", nom: "Alambic", rar: "rare", famille: "Économie", icone: "⚗", desc: "Les pas, les dés et les sceaux des salles bonus sont doublés." },
     { id: "sablier2", nom: "Sablier fêlé", rar: "peu", maudit: true, famille: "Énigmes", icone: "⌛", desc: "+10 secondes à chaque énigme. Prix : 3 pas de moins tout de suite (et à chaque nouvel étage).", prix: "−3 pas" },
     { id: "pacte", nom: "Pacte du fondeur", rar: "peu", maudit: true, famille: "Économie", icone: "📜", desc: "+1 pièce à chaque énigme résolue. Prix : le plafond du deck est réduit de 3.", prix: "plafond −3" },
-    { id: "poing", nom: "Poing des Gardiens", rar: "rare", maudit: true, famille: "Gemmes", icone: "✊", desc: "Vos gemmes décalent toujours de 2 crans, et votre propre salle est entraînée avec sa ligne au lieu de rester en place.", prix: "votre salle bouge aussi" },
+    { id: "poing", nom: "Poing des Gardiens", rar: "rare", maudit: true, famille: "Gemmes", requiert: "gemmes", icone: "✊", desc: "Vos gemmes décalent toujours de 2 crans, et votre propre salle est entraînée avec sa ligne au lieu de rester en place.", prix: "votre salle bouge aussi" },
   ];
   const JOKERS_PAR_ID = {};
   JOKERS.forEach((j) => (JOKERS_PAR_ID[j.id] = j));
@@ -218,10 +218,89 @@
     // Plan réservé aux tests automatiques : jamais tiré (étage 0)
     { id: "essai", nom: "Plan d'essai", tier: 0, pas: 45, carte: ["..C..", ".....", ".....", ".....", ".....", ".....", ".....", ".....", "..D.."] },
   ];
+  // ---- Les paliers : les règles arrivent une par une, débloquées entre les parties ----
+  // Ordre fixe de la première campagne : base, murs et salles fixes, jokers, cases spéciales, gemmes.
+  // « pret: false » : la règle n'existe pas encore ; le palier est affiché « bientôt » et sauté.
+  const PALIERS = [
+    {
+      n: 1, id: "base", nom: "Le jeu de base", pret: true,
+      resume: "Énigmes, deck, pièces et boutique.",
+      texte: [
+        "Vous descendez dans le labyrinthe des Gardiens du seuil, sur les traces du serrurier Valcourt. Trois étages, et une Chambre à atteindre à chacun.",
+        "<b>Chaque porte est scellée par une énigme chronométrée.</b> Vous n'avez qu'une chance : une énigme ratée condamne la porte.",
+        "<b>Réussie, elle vous rapporte des pièces</b> et vous fait choisir une salle parmi trois cartes tirées de votre deck. Chaque pas coûte 1 : à zéro, l'expédition s'arrête.",
+        "<b>Vos pièces</b> achètent de nouvelles cartes, ou retirent les mauvaises, chez le marchand entre deux étages.",
+      ],
+    },
+    {
+      n: 2, id: "murs", nom: "Murs et salles fixes", pret: true,
+      resume: "Des plans plus tortueux.",
+      texte: [
+        "Le plan n'est plus un simple rectangle.",
+        "<b>Des murs de pierre</b> barrent certaines cases : rien ne peut y être posé, on ne les traverse pas, et une porte contre un mur n'existe pas.",
+        "<b>Des salles fixes</b>, marquées d'une punaise 📌 (boutique, puits, sanctuaire), sont posées d'avance et ne bougent jamais.",
+        "Les plans sont plus longs à parcourir : le nombre de pas de chaque étage s'adapte à sa forme.",
+      ],
+    },
+    {
+      n: 3, id: "jokers", nom: "Les jokers", pret: true,
+      resume: "Des règles passives à acheter.",
+      texte: [
+        "<b>Un joker est une règle passive</b> qui change votre partie : plus de temps, plus de pièces, un tirage élargi...",
+        "Vous avez <b>3 emplacements</b> (jusqu'à 5, en boutique). Chaque boutique vend 2 jokers ; vous pouvez les <b>revendre à moitié prix</b>.",
+        "Attention aux <b>malédictions</b> : des jokers très puissants, mais avec un prix. Une bulle et un éclat signalent chaque fois qu'un joker agit.",
+      ],
+    },
+    {
+      n: 4, id: "cases", nom: "Cases spéciales", pret: false,
+      resume: "Des cases qui changent les règles un instant.",
+      texte: [
+        "Certaines cases du plan, marquées d'un « ? », ont un <b>environnement spécial</b> : un bonus, une interdiction de pose ou un malus qui dure jusqu'à la prochaine salle posée.",
+      ],
+    },
+    {
+      n: 5, id: "gemmes", nom: "Les gemmes", pret: true,
+      resume: "Décaler les lignes et les colonnes du plan.",
+      texte: [
+        "Certaines salles donnent des <b>gemmes ↔ et ↕</b>. Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, <b>en bouclant</b> : la salle qui sort d'un côté réapparaît de l'autre.",
+        "Les murs, les salles fixes, le vestibule, la Chambre et <b>la salle où vous êtes</b> ne bougent pas : les autres salles glissent en les sautant. Les gemmes rares vont jusqu'à deux crans.",
+        "Touchez la gemme dans le panneau, puis une ligne ou une colonne, puis un sens. Elle est grisée quand aucune ligne n'est utilisable.",
+      ],
+    },
+  ];
+  const reglesDe = (n) => ({ murs: n >= 2, jokers: n >= 3, cases: n >= 4, gemmes: n >= 5 });
+  const RATIO_PAS = { 0: 5.6, 1: 5.6, 2: 5.3, 3: 5.0 }; // pas = ratio × distance la plus courte, selon les règles actives
+  const palierDe = (n) => PALIERS.find((p) => p.n === n);
+  const dernierPalierPret = () => PALIERS.filter((p) => p.pret).slice(-1)[0].n;
+  const palierSuivant = (n) => {
+    const p = PALIERS.find((x) => x.n > n && x.pret);
+    return p ? p.n : 0;
+  };
+  function paliers() {
+    try {
+      const p = JSON.parse(localStorage.getItem("seuil-paliers") || "{}");
+      return { max: p.max || 1, gagnes: p.gagnes || {}, vus: p.vus || {} };
+    } catch (e) {
+      return { max: 1, gagnes: {}, vus: {} };
+    }
+  }
+  function sauverPaliers(p) {
+    try {
+      localStorage.setItem("seuil-paliers", JSON.stringify(p));
+    } catch (e) {}
+  }
+  let palierChoisi = 0; // palier sélectionné dans le menu (0 : le plus avancé)
+  function palierEffectif() {
+    const P = paliers();
+    const n = palierChoisi;
+    return n && n <= P.max && palierDe(n) && palierDe(n).pret ? n : P.max;
+  }
+
   const SALLES_FIXES = { B: "boutique", P: "puits", S: "sanctuaire", F: "forge" };
   const AJAR_PAR_ETAGE = { 1: 0.22, 2: 0.15, 3: 0.08 };
 
-  function parserPlan(plan, miroir) {
+  function parserPlan(plan, miroir, regles) {
+    regles = regles || { murs: true };
     const rows = plan.carte.map((r) => (miroir ? r.split("").reverse().join("") : r));
     const nr = rows.length, nc = rows[0].length;
     const mur = Array.from({ length: nr }, () => Array(nc).fill(false));
@@ -230,10 +309,11 @@
     rows.forEach((ligne, r) => {
       if (ligne.length !== nc) throw new Error("Plan " + plan.id + " : lignes de longueurs différentes");
       ligne.split("").forEach((ch, c) => {
-        if (ch === "#") mur[r][c] = true;
+        // Sans la règle « murs et salles fixes », # et B P S F deviennent des cases libres
+        if (ch === "#") mur[r][c] = !!regles.murs;
         else if (ch === "D") start = { r, c };
         else if (ch === "C") goal = { r, c };
-        else if (SALLES_FIXES[ch]) fixes.push({ r, c, id: SALLES_FIXES[ch] });
+        else if (SALLES_FIXES[ch] && regles.murs) fixes.push({ r, c, id: SALLES_FIXES[ch] });
       });
     });
     if (!start || !goal) throw new Error("Plan " + plan.id + " : départ ou Chambre manquant");
@@ -461,10 +541,14 @@
     } catch (e) {}
   }
 
-  function nouvellePartie(graine) {
+  function nouvellePartie(graine, palier) {
     const seed = normaliserGraine(graine) || graineAleatoire();
+    const n = palier || 1;
     G = {
       seed,
+      palier: n,
+      regles: reglesDe(n),
+      nouveauPalier: 0,
       deck: [],
       pioche: [],
       defausse: [],
@@ -524,7 +608,7 @@
   function chargerEtage(n, forcer) {
     const plan = forcer ? PLANS.find((p) => p.id === forcer.id) : avecFlux("plan:" + n, () => pick(PLANS.filter((p) => p.tier === n)));
     const miroir = forcer ? !!forcer.miroir : avecFlux("plan-miroir:" + n, () => R() < 0.5);
-    const P = parserPlan(plan, miroir);
+    const P = parserPlan(plan, miroir, G.regles);
     ROWS = P.rows;
     COLS = P.cols;
     START = P.start;
@@ -543,7 +627,9 @@
     P.fixes.forEach((f) => {
       G.grid[f.r][f.c] = { tpl: SALLES_PAR_ID[f.id], doors: portesLibres(f.r, f.c), visited: false, fixe: true, theme: null };
     });
-    G.stepsMax = Math.max(5, plan.pas - (aJoker("sablier2") ? 3 : 0)); // le Sablier fêlé retire 3 pas à chaque étage
+    // Les pas suivent la forme du plan avec les règles actives : environ 5,6 fois la distance au 1er étage, 5,3 au 2e, 5 au 3e
+    const pas = Math.round((RATIO_PAS[plan.tier] || 5.6) * G.dist0);
+    G.stepsMax = Math.max(5, pas - (aJoker("sablier2") ? 3 : 0)); // le Sablier fêlé retire 3 pas à chaque étage
     G.steps = G.stepsMax;
     G.dice = Math.max(1, G.dice); // un dé et un sceau sont renouvelés à chaque étage
     G.seals = Math.max(1, G.seals);
@@ -731,7 +817,7 @@
 
   // n cartes distinctes du pool (les salles pièges n'y figurent pas). Le hasard vient du flux courant.
   function offrir(n, forcer) {
-    const pool = SALLES.filter((t) => t.kind !== "trap" && copies(t.id) < (t.max || 99)).map((t) => ({ t, w: t.w * (aJoker("sourcier") && t.fx && t.fx.gem ? 2 : 1) }));
+    const pool = SALLES.filter((t) => t.kind !== "trap" && copies(t.id) < (t.max || 99) && (G.regles.gemmes || !(t.fx && t.fx.gem))).map((t) => ({ t, w: t.w * (aJoker("sourcier") && t.fx && t.fx.gem ? 2 : 1) }));
     const cartes = [];
     const ajouter = (t) => cartes.push({ id: t.id, theme: (t.doors || []).length ? pick(THEME_IDS) : null });
     if (forcer) {
@@ -798,7 +884,8 @@
 
   // n jokers que le joueur n'a pas encore, tirés selon leur rareté (flux courant)
   function offrirJokers(n) {
-    const pool = JOKERS.filter((j) => !aJoker(j.id)).map((j) => ({ j, w: RARETES[j.rar].w }));
+    if (!G.regles.jokers) return [];
+    const pool = JOKERS.filter((j) => !aJoker(j.id) && !(j.requiert === "gemmes" && !G.regles.gemmes)).map((j) => ({ j, w: RARETES[j.rar].w }));
     const ids = [];
     while (ids.length < n && pool.length) {
       let x = R() * pool.reduce((sum, e) => sum + e.w, 0), i = 0;
@@ -1109,6 +1196,16 @@
     if (raison === "win") {
       s.wins = (s.wins || 0) + 1;
       if (G.steps > (s.best || 0)) s.best = G.steps;
+      // Une victoire débloque le palier suivant
+      const P = paliers();
+      P.gagnes[G.palier] = true;
+      const suiv = palierSuivant(G.palier);
+      if (suiv && suiv > P.max) {
+        P.max = suiv;
+        G.nouveauPalier = suiv;
+        palierChoisi = suiv; // le menu propose désormais le palier tout juste débloqué
+      }
+      sauverPaliers(P);
       son("tampon");
     } else {
       son("rature");
@@ -1505,7 +1602,7 @@
         <span class="chip" title="Sceaux : ouvrent une porte sans énigme">🗝 <b>${G.seals}</b> <em>sceau${G.seals > 1 ? "x" : ""}</em></span>
         <span class="chip" title="Temps bonus sur chaque énigme">⏳ <b>+${bonusTemps()}</b> <em>s</em></span>
       </div>
-      <div class="hud-items">${gemmesHTML()}</div>
+      ${G.regles.gemmes ? `<div class="hud-items">${gemmesHTML()}</div>` : ""}
       <div class="hud-items">${deckChip()}<button class="chip" data-act="copier" title="Copier la graine pour rejouer ou partager cette partie">🌱 <b>${esc(G.seed)}</b></button></div>
     </div>
     ${G.draft ? tirageHTML() : ""}
@@ -1538,7 +1635,7 @@
     if (!G) return (app.innerHTML = menuHTML());
     app.innerHTML = `
       <header class="entete">
-        <div class="titre-mini"><span class="marque">Bureau des affaires occultes</span><h1>SEUIL</h1></div>
+        <div class="titre-mini"><span class="marque">Bureau des affaires occultes</span><h1>SEUIL</h1><span class="palier-tag">Palier ${G.palier} · ${esc(palierDe(G.palier).nom)}</span></div>
         <div class="entete-btns">
           <button class="petit" data-act="rules" title="Règles">?</button>
           <button class="petit" data-act="sound" title="Son">${muet ? "🔇" : "🔊"}</button>
@@ -1561,6 +1658,7 @@
   }
 
   function jokersHTML() {
+    if (!G.regles.jokers) return "";
     const cases = [];
     for (let i = 0; i < G.slots; i++) {
       const id = G.jokers[i];
@@ -1599,8 +1697,19 @@
   }
 
   function menuHTML() {
-    const s = stats();
-    const rec = s.wins ? `Meilleur résultat : sortie avec ${s.best} pas restants · ${s.wins} victoire${s.wins > 1 ? "s" : ""} sur ${s.runs || s.wins} expédition${(s.runs || 0) > 1 ? "s" : ""}.` : s.runs ? `${s.runs} expédition${s.runs > 1 ? "s" : ""}, aucune sortie pour l'instant.` : "";
+    const s0 = stats();
+    const P = paliers();
+    const sel = palierEffectif();
+    const rec = s0.wins ? `Meilleur résultat : sortie avec ${s0.best} pas restants · ${s0.wins} victoire${s0.wins > 1 ? "s" : ""} sur ${s0.runs || s0.wins} expédition${(s0.runs || 0) > 1 ? "s" : ""}.` : s0.runs ? `${s0.runs} expédition${s0.runs > 1 ? "s" : ""}, aucune sortie pour l'instant.` : "";
+    const lignes = PALIERS.map((p) => {
+      const debloque = p.pret && p.n <= P.max;
+      const etat = !p.pret ? "Bientôt" : !debloque ? "🔒" : P.gagnes[p.n] ? "✓" : "";
+      const raison = !p.pret ? "Cette règle arrive bientôt." : !debloque ? "Gagnez le palier " + (p.n - 1 > 0 && !PALIERS[p.n - 2].pret ? p.n - 2 : p.n - 1) + " pour le débloquer." : p.resume;
+      return `<li><button class="palier${p.n === sel ? " sel" : ""}${debloque ? "" : " verrou"}" data-act="palier" data-n="${p.n}"${debloque ? "" : " disabled"} aria-pressed="${p.n === sel}">
+        <span class="p-num">${p.n}</span><span class="p-nom">${esc(p.nom)}</span><span class="p-etat">${etat}</span>
+        <span class="p-resume">${esc(raison)}</span></button></li>`;
+    }).join("");
+    const complet = P.max >= dernierPalierPret();
     return `<div class="menu">
       <div class="menu-fond"><img src="img/menu-fond.jpg" alt="" onerror="this.remove()"></div>
       <div class="menu-inner">
@@ -1608,16 +1717,21 @@
         <img class="menu-sal" src="img/salamandre.png" alt="" onerror="this.remove()">
         <h1 class="menu-titre">SEUIL</h1>
         <p class="menu-tag">Le labyrinthe des Gardiens. Chaque porte est une question. Chaque réponse ouvre un chemin, et le chemin se paie en pas.</p>
+        <section class="paliers" aria-label="Choix du palier">
+          <h2 class="paliers-titre">Palier</h2>
+          <ul>${lignes}</ul>
+        </section>
         <label class="menu-graine">
           <span>Graine (facultative)</span>
           <input id="graine" type="text" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="au hasard">
         </label>
         <div class="menu-liste">
-          <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition</span><span class="menu-sub">Un deck de 8 salles, trois étages, et un serrurier à retrouver</span></button>
-          <button class="menu-item" data-act="daily"><span class="menu-label">Défi du jour</span><span class="menu-sub">La même partie pour tout le monde aujourd'hui</span></button>
-          <button class="menu-item" data-act="rules"><span class="menu-label">Comment jouer</span><span class="menu-sub">Deux minutes de lecture</span></button>
+          <button class="menu-item" data-act="new"><span class="menu-label">Nouvelle expédition · palier ${sel}</span><span class="menu-sub">${esc(palierDe(sel).nom)} : trois étages, un deck de 8 salles, un serrurier à retrouver</span></button>
+          <button class="menu-item" data-act="daily"${complet ? "" : " disabled"}><span class="menu-label">Défi du jour</span><span class="menu-sub">${complet ? "Le jeu complet, la même partie pour tout le monde aujourd'hui" : "Disponible quand tous les paliers sont débloqués"}</span></button>
+          <button class="menu-item" data-act="rules"><span class="menu-label">Comment jouer</span><span class="menu-sub">Les règles du palier ${sel}</span></button>
         </div>
         <p class="menu-foot">${esc(rec)}</p>
+        <p class="menu-foot menu-liens"><button class="lien-petit" data-act="tout-debloquer">Je connais déjà le jeu : tout débloquer</button>${P.max > 1 || Object.keys(P.vus).length ? ` · <button class="lien-petit" data-act="reinit-paliers">Recommencer la progression</button>` : ""}</p>
         <p class="menu-foot">Prototype · Maison Paradoxe</p>
       </div>
     </div>`;
@@ -1737,6 +1851,26 @@
     </section>`;
   }
 
+  // Bloc d'explication d'une règle (utilisé au déblocage et au premier lancement du palier)
+  function nouvelleRegleHTML(n) {
+    const p = palierDe(n);
+    return `<div class="nouvelle-regle">
+      <p class="nr-etiquette">✦ Nouvelle règle débloquée · palier ${n}</p>
+      <h3>${esc(p.nom)}</h3>
+      ${p.texte.map((t) => `<p>${t}</p>`).join("")}
+    </div>`;
+  }
+
+  function modalePalierIntro(n) {
+    const p = palierDe(n);
+    afficherModale(`
+      <p class="modal-sur">Palier ${n}</p>
+      <h2>${esc(p.nom)}</h2>
+      ${n === 1 ? "" : `<p class="nr-etiquette">✦ Nouveau dans ce palier</p>`}
+      ${p.texte.map((t) => `<p>${t}</p>`).join("")}
+      <div class="boutons"><button class="btn principal" data-act="close">${n === 1 ? "Descendre" : "Compris, en avant"}</button></div>`, "regle-modal");
+  }
+
   function modaleFin() {
     const win = G.over === "win";
     const titre = win ? "Vous êtes sorti vivant… et arrivé." : G.over === "steps" ? "Plus un pas." : "Il n'y a plus de porte.";
@@ -1746,7 +1880,7 @@
       ? "Vos pas sont comptés, et ils sont finis. Les Gardiens referment le seuil. Le labyrinthe se recompose : la prochaine fois, ses portes seront ailleurs."
       : "Toutes les portes ouvertes ne mènent nulle part, et toutes les autres sont condamnées. Le labyrinthe vous garde.";
     afficherModale(`
-      <p class="modal-sur">${win ? "Fin de l'expédition" : "Expédition terminée"}</p>
+      <p class="modal-sur">${win ? "Fin de l'expédition" : "Expédition terminée"} · palier ${G.palier}</p>
       <h2 class="${win ? "ok" : "ko"}">${titre}</h2>
       <p>${texte}</p>
       <ul class="bilan">
@@ -1758,9 +1892,11 @@
         <li><b>${G.coins}</b> pièces, <b>${G.deck.length}</b> cartes dans le deck</li>
         <li><b>${G.fragments}/${FRAGMENTS.length}</b> fragments du carnet</li>
       </ul>
+      ${G.nouveauPalier ? nouvelleRegleHTML(G.nouveauPalier) : ""}
       <div class="boutons">
-        <button class="btn principal" data-act="new">Nouvelle graine</button>
-        <button class="btn" data-act="replay">Rejouer cette graine</button>
+        ${G.nouveauPalier ? `<button class="btn principal" data-act="palier-suivant">Jouer le palier ${G.nouveauPalier}</button>` : ""}
+        <button class="btn${G.nouveauPalier ? "" : " principal"}" data-act="new">${G.nouveauPalier ? "Rejouer ce palier" : "Nouvelle graine"}</button>
+        <button class="btn" data-act="replay">Même graine</button>
         <button class="btn lien" data-act="menu">Menu</button>
       </div>`, (win ? "reussi" : "rate") + " sans-echap");
   }
@@ -1812,6 +1948,7 @@
   }
 
   function jokersBoutiqueHTML() {
+    if (!G.regles.jokers) return "";
     const B = G.boutique;
     const vente = B.jokers.length
       ? B.jokers
@@ -1886,6 +2023,20 @@
     return m.hidden || !m.classList.contains("sans-echap");
   }
 
+  // Lance une partie au palier n ; au premier lancement d'un palier, on explique sa règle.
+  function demarrer(graine, palier) {
+    fermerModale();
+    nouvellePartie(graine, palier);
+    son("page-journal");
+    render();
+    const P = paliers();
+    if (!P.vus[palier]) {
+      P.vus[palier] = true;
+      sauverPaliers(P);
+      modalePalierIntro(palier);
+    }
+  }
+
   function modaleDeck() {
     const enMain = new Set(G.draft ? G.draft.cands.map((c) => c.card.uid) : []);
     const dansPioche = new Set(G.pioche.map((c) => c.uid));
@@ -1913,24 +2064,27 @@
   }
 
   function modaleRegles() {
+    const R2 = G ? G.regles : reglesDe(palierEffectif());
+    const li = [];
+    li.push("<b>Objectif :</b> traverser <b>trois étages</b>. À chaque étage, atteindre la <b>Chambre des Gardiens</b> en partant du vestibule. Chaque étage a son plan (tiré par la graine), son nombre de pas, et ses portes de plus en plus dures. Vous gardez votre deck, vos pièces" + (R2.jokers ? " et vos jokers" : "") + " d'un étage à l'autre ; un marchand vous attend entre deux étages. Un dé et un sceau vous sont rendus à chaque étage.");
+    if (R2.murs) li.push("<b>Murs et salles fixes.</b> Une case en pierre est un mur : rien ne peut y être posé. Une salle marquée d'une punaise 📌 (boutique, puits...) est posée d'avance et ne bouge jamais" + (R2.gemmes ? ", même quand une gemme décale sa ligne : les autres salles glissent en la sautant." : "."));
+    li.push("<b>Chaque pas coûte 1.</b> Traverser une porte, même pour revenir en arrière, consomme un pas. À zéro, l'expédition s'arrête.");
+    li.push("<b>Les portes sont scellées.</b> Une porte verrouillée pose une énigme chronométrée : calcul, suite logique, orthographe. Trois niveaux de difficulté, de plus en plus durs en montant.");
+    li.push("<b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.");
+    li.push("<b>Vos salles sont des cartes.</b> Vous partez avec un deck de 8 cartes. À chaque porte, vous tirez 3 cartes de la pioche et vous en posez une derrière la porte, avec ses propres portes. Les trois cartes vont ensuite à la défausse ; quand la pioche est presque vide, on y remélange la défausse. Touchez « Deck » pour voir vos cartes.");
+    li.push("<b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.");
+    li.push("<b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.");
+    li.push("<b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.");
+    if (R2.jokers) li.push("<b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi" + (R2.gemmes ? ", gemmes plus puissantes" : "") + "... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.");
+    li.push("<b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.");
+    if (R2.gemmes) li.push("<b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes, les murs et la salle où vous vous trouvez ne bougent pas : les autres salles de la ligne glissent en les sautant. Il faut au moins une salle mobile dans la ligne ; sinon la gemme est grisée. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.");
+    li.push("<b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.");
+    const n = G ? G.palier : palierEffectif();
     afficherModale(`
-      <p class="modal-sur">Comment jouer</p>
+      <p class="modal-sur">Comment jouer · palier ${n}</p>
       <h2>Règles de l'expédition</h2>
-      <ol class="regles">
-        <li><b>Objectif :</b> traverser <b>trois étages</b>. À chaque étage, atteindre la <b>Chambre des Gardiens</b> en partant du vestibule. Chaque étage a son plan (tiré par la graine), son nombre de pas, et ses portes de plus en plus dures. Vous gardez votre deck, vos jokers et vos pièces d'un étage à l'autre ; un marchand vous attend entre deux étages. Un dé et un sceau vous sont rendus à chaque étage.</li>
-        <li><b>Murs et salles fixes.</b> Une case sombre est un mur : rien ne peut y être posé. Une salle marquée d'une punaise 📌 (boutique, puits...) est posée d'avance et ne bouge jamais, même quand une gemme décale sa ligne : les autres salles glissent en la sautant.</li>
-        <li><b>Chaque pas coûte 1.</b> Traverser une porte, même pour revenir en arrière, consomme un pas. À zéro, l'expédition s'arrête.</li>
-        <li><b>Les portes sont scellées.</b> Une porte verrouillée pose une énigme chronométrée : calcul, suite logique, orthographe. Trois niveaux de difficulté, de plus en plus durs en montant.</li>
-        <li><b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.</li>
-        <li><b>Vos salles sont des cartes.</b> Vous partez avec un deck de 8 cartes. À chaque porte, vous tirez 3 cartes de la pioche et vous en posez une derrière la porte, avec ses propres portes. Les trois cartes vont ensuite à la défausse ; quand la pioche est presque vide, on y remélange la défausse. Touchez « Deck » pour voir vos cartes.</li>
-        <li><b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.</li>
-        <li><b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.</li>
-        <li><b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.</li>
-        <li><b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi, gemmes plus puissantes... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.</li>
-        <li><b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.</li>
-        <li><b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes, les murs et la salle où vous vous trouvez ne bougent pas : les autres salles de la ligne glissent en les sautant. Il faut au moins une salle mobile dans la ligne ; sinon la gemme est grisée. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.</li>
-        <li><b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.</li>
-      </ol>
+      <ol class="regles">${li.map((x) => `<li>${x}</li>`).join("")}</ol>
+      <p class="note-deck">D'autres règles se débloquent au fil des paliers, en gagnant des expéditions.</p>
       <div class="boutons"><button class="btn principal" data-act="close">Compris</button></div>`, "regles");
   }
 
@@ -1944,15 +2098,59 @@
     switch (act) {
       case "new":
       case "daily":
-      case "replay": {
+      case "replay":
+      case "palier-suivant": {
         const champ = document.getElementById("graine");
-        const graine = act === "daily" ? graineDuJour() : act === "replay" && G ? G.seed : champ ? champ.value : "";
+        let graine = champ ? champ.value : "";
+        let palier = G ? G.palier : palierEffectif();
+        if (act === "daily") {
+          if (paliers().max < dernierPalierPret()) break;
+          graine = graineDuJour();
+          palier = dernierPalierPret();
+        } else if (act === "replay" && G) graine = G.seed;
+        else if (act === "palier-suivant" && G) {
+          palier = G.nouveauPalier;
+          graine = "";
+          palierChoisi = palier;
+        }
+        demarrer(graine, palier);
+        break;
+      }
+      case "palier":
+        palierChoisi = parseInt(el.getAttribute("data-n"), 10);
+        son("clic");
+        render();
+        break;
+      case "tout-debloquer":
+        afficherModale(`
+          <p class="modal-sur">Progression</p>
+          <h2>Tout débloquer ?</h2>
+          <p>Tous les paliers seront débloqués d'un coup, y compris le défi du jour. Vous perdrez les explications qui accompagnent chaque nouvelle règle. Elles restent lisibles dans « Comment jouer ».</p>
+          <div class="boutons"><button class="btn principal" data-act="tout-debloquer-oui">Oui, tout débloquer</button><button class="btn lien" data-act="close">Annuler</button></div>`, "regle-modal");
+        break;
+      case "tout-debloquer-oui": {
+        const P = paliers();
+        P.max = dernierPalierPret();
+        PALIERS.forEach((p) => (P.vus[p.n] = true));
+        sauverPaliers(P);
+        palierChoisi = P.max;
         fermerModale();
-        nouvellePartie(graine);
-        son("page-journal");
         render();
         break;
       }
+      case "reinit-paliers":
+        afficherModale(`
+          <p class="modal-sur">Progression</p>
+          <h2>Recommencer la progression ?</h2>
+          <p>Les paliers débloqués et les explications déjà lues seront effacés : vous repartirez du palier 1. Vos records restent.</p>
+          <div class="boutons"><button class="btn principal" data-act="reinit-paliers-oui">Oui, recommencer</button><button class="btn lien" data-act="close">Annuler</button></div>`, "regle-modal");
+        break;
+      case "reinit-paliers-oui":
+        sauverPaliers({ max: 1, gagnes: {}, vus: {} });
+        palierChoisi = 0;
+        fermerModale();
+        render();
+        break;
       case "deck":
         if (G && modaleLibre()) modaleDeck();
         break;
@@ -2130,5 +2328,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

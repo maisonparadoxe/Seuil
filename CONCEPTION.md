@@ -191,7 +191,7 @@ Chaque étape se teste seule.
 2. **L'économie** (fait). Monnaie, récompenses, Boutique, retrait, plafond de 15.
 3. **Les jokers** (fait). Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement.
 4. **Les niveaux** (fait). Plans en texte, murs et salles fixes, décalage adapté, trois étages.
-5. **Les paliers.** La liste de règles actives, la sauvegarde des paliers débloqués, l'écran de choix du palier, le raccourci « tout débloquer », le filtrage des cartes et des jokers qui dépendent d'une règle éteinte. On la fait **avant** les cases spéciales, pour que celles-ci naissent déjà derrière leur interrupteur.
+5. **Les paliers** (fait). La liste de règles actives, la sauvegarde des paliers débloqués, l'écran de choix du palier, le raccourci « tout débloquer », le filtrage des cartes et des jokers qui dépendent d'une règle éteinte. On la fait **avant** les cases spéciales, pour que celles-ci naissent déjà derrière leur interrupteur.
 6. **Les cases spéciales.** Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée. Palier 4.
 7. **Le reste de la progression.** Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.
 
@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Étape 5 : les paliers, faite** (voir plus bas).
 - **Étape 4 : les niveaux, faite** (voir plus bas).
 - **Étape 3 : les jokers, faite** (voir plus bas).
 - **Étape 2 : l'économie, faite** (voir plus bas).
@@ -269,6 +270,23 @@ Un dixième plan, « d'essai » (l'ancien plan 5×9, sans murs), n'est jamais ti
 Vérifié par des tests automatiques : validité des 18 plans (chemin, aucune case isolée), même graine = mêmes plans, les 9 plans apparaissent parmi 40 graines, aucune porte contre un mur sur 1 404 salles tirées, décalages avec cases fixes et murs, transitions d'étage complètes (conservation du deck, des pièces et des jokers, renouvellement des pas, dés et sceaux), victoire au 3ᵉ étage, montée de la difficulté.
 
 À revoir après quelques parties : les pas de chaque plan, la fréquence des récompenses de cartes (toujours réglée pour un seul étage : porte de niveau 2, une fois sur deux ; niveau 3, toujours), et le nombre de plans (2 ou 3 par difficulté).
+
+### Étape 5 : les paliers (faite)
+
+- **Menu.** Cinq paliers listés, avec leur état : sélectionnable, verrouillé (« Gagnez le palier N »), gagné (✓), ou « Bientôt » (palier 4). Le menu propose par défaut le palier le plus avancé ; après avoir débloqué un palier, il propose ce nouveau palier.
+- **Interrupteurs de règles.** Chaque partie porte quatre interrupteurs (murs et salles fixes, jokers, cases spéciales, gemmes) fixés par le palier. Une règle éteinte disparaît complètement :
+  - sans murs ni salles fixes : les `#` et les `B P S F` des plans deviennent des cases libres ;
+  - sans jokers : ni panneau, ni emplacements, ni jokers en boutique ;
+  - sans gemmes : ni salles à gemmes dans les récompenses et les boutiques, ni gemmes à l'écran, ni les jokers qui en dépendent (Baguette de sourcier, Ciseau de lapidaire, Poing des Gardiens) ;
+  - les règles affichées dans « Comment jouer » suivent le palier.
+- **Pas recalculés.** Ils ne sont plus lus dans le plan : ils se calculent d'après la distance la plus courte **avec les règles actives** (5,6 fois au 1ᵉʳ étage, 5,3 au 2ᵉ, 5 au 3ᵉ). Avec toutes les règles, on retrouve exactement les valeurs du tableau des plans ; sans murs, un plan plus court donne moins de pas. Le champ `pas` des plans n'est qu'un repère.
+- **Textes explicatifs.** Chaque règle a son texte, affiché à deux moments : dans l'écran de victoire qui la débloque (« Nouvelle règle débloquée », avec un bouton « Jouer le palier N »), et au premier lancement du palier (« Nouveau dans ce palier »), une seule fois. Le palier 1 a un texte de bienvenue. Les textes restent relisibles dans « Comment jouer ».
+- **Déblocage.** Une victoire (Chambre du 3ᵉ étage) débloque le palier suivant **prêt** : le palier 4 n'étant pas encore construit, gagner le palier 3 débloque le palier 5. Une défaite ne fait rien perdre. Sauvegarde dans le navigateur (`seuil-paliers`).
+- **Raccourcis.** « Je connais déjà le jeu : tout débloquer » (avec confirmation) ouvre tous les paliers et marque les explications comme lues. « Recommencer la progression » (avec confirmation) remet tout à zéro ; les records restent.
+- **Défi du jour.** Il joue le jeu complet et n'est disponible qu'une fois tous les paliers débloqués (ou après « tout débloquer »).
+- **Reste à faire.** Le palier 4 (cases spéciales) est en attente de l'étape 6. Le mode libre à l'ordre tiré par la graine est prévu à l'étape 7.
+
+Vérifié par des tests automatiques : verrouillage au départ, texte du palier 1, aucune règle avancée au palier 1 (ni mur, ni salle fixe, ni joker, ni gemme, ni salle à gemmes sur 400 offres), pas recalculés, victoire → déblocage avec texte explicatif, explication affichée une seule fois, saut du palier 4, filtrage des jokers de gemmes au palier 3 (12 jokers sur 15), 15 jokers au palier 5, défi du jour verrouillé puis disponible, sauvegarde après rechargement, « tout débloquer » et « recommencer », même graine et même palier = même partie ; et toutes les anciennes suites (économie, jokers, niveaux, déterminisme).
 
 ## 6. Risques à surveiller
 
