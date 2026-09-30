@@ -193,13 +193,14 @@ Chaque étape se teste seule.
 4. **Les niveaux** (fait). Plans en texte, murs et salles fixes, décalage adapté, trois étages.
 5. **Les paliers** (fait). La liste de règles actives, la sauvegarde des paliers débloqués, l'écran de choix du palier, le raccourci « tout débloquer », le filtrage des cartes et des jokers qui dépendent d'une règle éteinte. On la fait **avant** les cases spéciales, pour que celles-ci naissent déjà derrière leur interrupteur.
 6. **Les cases spéciales** (fait). Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée. Palier 4.
-7. **Le reste de la progression.** *7a faite : exploits et cartes/jokers à débloquer.* Reste : joker fétiche, mode libre à l'ordre tiré par la graine, défi du jour complet. (Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.)
+7. **Le reste de la progression.** *7a faite : exploits et cartes/jokers à débloquer. 7b faite : joker fétiche.* Reste : mode libre à l'ordre tiré par la graine, défi du jour complet. (Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.)
 
 Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
 ## 5 bis. Avancement
 
-- **Étape 7a : exploits et déblocages, faite** (voir plus bas). Restent 7b (joker fétiche) et 7c (mode libre).
+- **Étape 7b : joker fétiche, faite** (voir plus bas).
+- **Étape 7a : exploits et déblocages, faite** (voir plus bas). Reste 7c (mode libre, défi du jour complet).
 - **Étape 6 : les cases spéciales, faite** (voir plus bas).
 - **Étape 5 : les paliers, faite** (voir plus bas).
 - **Étape 4 : les niveaux, faite** (voir plus bas).
@@ -308,6 +309,14 @@ Vérifié par des tests automatiques : nombre et placement des `?` sur les 9 pla
 - **Aucune carte nouvelle à écrire** pour ce lot : les 15 déblocages sont des cartes et jokers existants.
 
 Vérifié par des tests automatiques : menu et carnet, cartes verrouillées absentes de 500 offres de salles et 300 de jokers, les 15 exploits (condition juste, pas avant), sauvegarde, entrée dans les pools, défaite qui valide quand même, rechargement, « tout débloquer » et « recommencer » ; et toutes les anciennes suites.
+
+### Étape 7b : le joker fétiche (faite)
+
+- **Choix.** À l'écran de victoire (paliers avec jokers), on choisit un joker parmi ceux qu'on possède. Un seul fétiche à la fois ; un nouveau choix à une victoire suivante remplace l'ancien. Une défaite ne propose rien.
+- **Effet.** Au départ de chaque partie avec jokers, le fétiche occupe un emplacement, marqué 📌. Il ne peut pas être vendu. Un fétiche qui dépend des gemmes ne s'applique pas tant que les gemmes sont éteintes.
+- **Menu.** Le fétiche y est affiché, avec « l'abandonner ». « Recommencer la progression » l'efface aussi. Sauvegarde : `seuil-fetiche`.
+
+Vérifié par des tests automatiques : choix à la victoire, sauvegarde, présence au départ suivant, vente refusée en boutique, remplacement, aucun choix après une défaite, aucun effet au palier sans jokers, abandon ; et toutes les anciennes suites.
 
 ## 6. Risques à surveiller
 

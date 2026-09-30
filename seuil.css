@@ -481,3 +481,12 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .exploits-fin { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--gold); background: rgba(185, 139, 42, 0.12); }
 .exploits-fin h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 16px; font-weight: 400; }
 .exploits-fin ul { margin: 0; padding-left: 18px; font-size: 13.5px; }
+
+/* Joker fétiche (étape 7b) */
+.joker.fetiche { box-shadow: 0 0 0 2px var(--gold); }
+.fetiche-fin { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--gold); background: rgba(185, 139, 42, 0.12); }
+.fetiche-fin h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 16px; font-weight: 400; }
+.fetiche-fin p { margin: 0 0 8px; font-size: 13.5px; }
+.fetiche-choix { display: flex; flex-wrap: wrap; gap: 6px; }
+.fetiche-btn { font-size: 14px; padding: 6px 10px; }
+.fetiche-btn.sel { border-color: var(--stamp-red); box-shadow: 0 0 0 2px var(--stamp-red); }

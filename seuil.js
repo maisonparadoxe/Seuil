@@ -353,6 +353,22 @@
     });
   }
 
+  // ---- Joker fétiche : un joker gardé d'une partie à l'autre ----
+  function fetiche() {
+    try {
+      const id = JSON.parse(localStorage.getItem("seuil-fetiche") || "{}").id;
+      return id && JOKERS_PAR_ID[id] ? id : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function sauverFetiche(id) {
+    try {
+      if (id) localStorage.setItem("seuil-fetiche", JSON.stringify({ id }));
+      else localStorage.removeItem("seuil-fetiche");
+    } catch (e) {}
+  }
+
   function paliers() {
     try {
       const p = JSON.parse(localStorage.getItem("seuil-paliers") || "{}");
@@ -674,6 +690,14 @@
     };
     G.deck = DECK_DEPART.map((d) => ({ uid: ++G.uidMax, id: d[0], theme: d[1] }));
     G.pioche = melanger(G.deck);
+    const fet = fetiche();
+    G.fetiche = null;
+    G.fetichePris = null;
+    // Le fétiche ne s'applique que si sa règle est active (une gemme sans palier des gemmes n'aurait aucun effet)
+    if (fet && G.regles.jokers && !(JOKERS_PAR_ID[fet].requiert === "gemmes" && !G.regles.gemmes)) {
+      G.jokers.push(fet);
+      G.fetiche = fet;
+    }
     chargerEtage(1);
     const s = stats();
     s.runs = (s.runs || 0) + 1;
@@ -1042,6 +1066,7 @@
   }
 
   function raisonVente(j) {
+    if (j.id === G.fetiche) return "Fétiche";
     if (j.id === "sacoche" && G.deck.length > plafondDeck() - 3) return "Deck trop grand";
     return "";
   }
@@ -1882,8 +1907,8 @@
         continue;
       }
       const j = JOKERS_PAR_ID[id];
-      cases.push(`<button class="joker${j.maudit ? " maudit" : ""}${G.flash === id ? " decl" : ""}${brouillard() ? " coupe" : ""}" style="--r:${RARETES[j.rar].couleur}" data-act="joker" data-id="${id}"${brouillard() ? ' title="Coupé par le Brouillard"' : ""}>
-        <span class="j-ico">${j.icone}</span><span class="j-nom">${esc(j.nom)}</span><span class="j-desc">${esc(j.desc)}</span></button>`);
+      cases.push(`<button class="joker${id === G.fetiche ? " fetiche" : ""}${j.maudit ? " maudit" : ""}${G.flash === id ? " decl" : ""}${brouillard() ? " coupe" : ""}" style="--r:${RARETES[j.rar].couleur}" data-act="joker" data-id="${id}"${brouillard() ? ' title="Coupé par le Brouillard"' : ""}>
+        <span class="j-ico">${j.icone}</span><span class="j-nom">${esc(j.nom)}${id === G.fetiche ? " 📌" : ""}</span><span class="j-desc">${esc(j.desc)}</span></button>`);
     }
     return `<section class="carte jokers"><h3>Jokers <span class="compte">${G.jokers.length}/${G.slots}</span></h3><div class="joker-liste">${cases.join("")}</div></section>`;
   }
@@ -1895,7 +1920,7 @@
       <h2>${j.icone} ${esc(j.nom)}</h2>
       <p><span class="theme-tag" style="--t:${RARETES[j.rar].couleur}">${RARETES[j.rar].nom}</span>${j.maudit ? ` <span class="theme-tag" style="--t:#9A2B25">Malédiction : ${esc(j.prix)}</span>` : ""}</p>
       <p>${esc(j.desc)}</p>
-      <p class="note-deck">Vendre : dans une boutique, pour ${Math.floor(prixJoker(j) / 2)} pièces.</p>
+      <p class="note-deck">${id === G.fetiche ? "📌 Votre joker fétiche : il vous suit de partie en partie et ne peut pas être vendu." : "Vendre : dans une boutique, pour " + Math.floor(prixJoker(j) / 2) + " pièces."}</p>
       <div class="boutons"><button class="btn principal" data-act="close">Fermer</button></div>`, "joker-modal");
   }
 
@@ -1947,6 +1972,7 @@
           <button class="menu-item" data-act="rules"><span class="menu-label">Comment jouer</span><span class="menu-sub">Les règles du palier ${sel}</span></button>
         </div>
         <p class="menu-foot">${esc(rec)}</p>
+        ${fetiche() ? `<p class="menu-foot">📌 Joker fétiche : <b>${JOKERS_PAR_ID[fetiche()].icone} ${esc(JOKERS_PAR_ID[fetiche()].nom)}</b> <button class="lien-petit" data-act="fetiche-abandon">l'abandonner</button></p>` : ""}
         <p class="menu-foot menu-liens"><button class="lien-petit" data-act="tout-debloquer">Je connais déjà le jeu : tout débloquer</button>${P.max > 1 || Object.keys(P.vus).length ? ` · <button class="lien-petit" data-act="reinit-paliers">Recommencer la progression</button>` : ""}</p>
         <p class="menu-foot">Prototype · Maison Paradoxe</p>
       </div>
@@ -2094,6 +2120,20 @@
       <div class="boutons"><button class="btn principal" data-act="close">${n === 1 ? "Descendre" : "Compris, en avant"}</button></div>`, "regle-modal");
   }
 
+  function fetichesFinHTML() {
+    if (G.over !== "win" || !G.regles.jokers || !G.jokers.length) return "";
+    const actuel = G.fetichePris || fetiche();
+    const boutons = G.jokers
+      .map((id) => {
+        const j = JOKERS_PAR_ID[id];
+        return `<button class="btn fetiche-btn${id === actuel ? " sel" : ""}" data-act="fetiche" data-id="${id}" aria-pressed="${id === actuel}">${j.icone} ${esc(j.nom)}${id === actuel ? " 📌" : ""}</button>`;
+      })
+      .join("");
+    return `<div class="fetiche-fin"><h3>📌 Joker fétiche</h3>
+      <p>Choisissez un joker à emporter : il occupera un emplacement au début de chaque prochaine partie (dès le palier des jokers) et ne pourra pas être vendu.${actuel && !G.jokers.includes(actuel) ? " Votre fétiche actuel est " + esc(JOKERS_PAR_ID[actuel].nom) + " ; en choisir un autre le remplace." : ""}</p>
+      <div class="fetiche-choix">${boutons}</div></div>`;
+  }
+
   function exploitsFinHTML() {
     if (!G.nouveauxExploits.length) return "";
     return `<div class="exploits-fin"><h3>🏆 Exploits accomplis</h3><ul>${G.nouveauxExploits
@@ -2139,6 +2179,7 @@
         <li><b>${G.fragments}/${FRAGMENTS.length}</b> fragments du carnet</li>
       </ul>
       ${exploitsFinHTML()}
+      ${fetichesFinHTML()}
       ${G.nouveauPalier ? nouvelleRegleHTML(G.nouveauPalier) : ""}
       <div class="boutons">
         ${G.nouveauPalier ? `<button class="btn principal" data-act="palier-suivant">Jouer le palier ${G.nouveauPalier}</button>` : ""}
@@ -2323,6 +2364,7 @@
     li.push("<b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.");
     li.push("<b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.");
     if (R2.jokers) li.push("<b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi" + (R2.gemmes ? ", gemmes plus puissantes" : "") + "... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.");
+    if (R2.jokers) li.push("<b>Joker fétiche.</b> Quand vous gagnez une partie, vous pouvez choisir l'un de vos jokers à emporter : il occupera un emplacement au début de chaque partie suivante et ne pourra pas être vendu. Un seul fétiche à la fois ; en choisir un autre à la victoire suivante le remplace.");
     li.push("<b>Exploits.</b> Au début, la moitié des salles et des jokers sont verrouillés. Chaque exploit (finir un étage sans condamner de porte, gagner avec un petit deck...) en débloque un pour toujours. Le carnet des exploits est dans le menu ; ils se valident même dans une partie perdue.");
     li.push("<b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.");
     if (R2.gemmes) li.push("<b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes, les murs et la salle où vous vous trouvez ne bougent pas : les autres salles de la ligne glissent en les sautant. Il faut au moins une salle mobile dans la ligne ; sinon la gemme est grisée. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.");
@@ -2380,6 +2422,21 @@
       case "exploits":
         modaleExploits();
         break;
+      case "fetiche": {
+        if (!G || G.over !== "win") break;
+        const id = el.getAttribute("data-id");
+        if (!G.jokers.includes(id)) break;
+        sauverFetiche(id);
+        G.fetichePris = id;
+        log("📌 Joker fétiche : " + JOKERS_PAR_ID[id].nom + ".");
+        son("tampon");
+        modaleFin();
+        break;
+      }
+      case "fetiche-abandon":
+        sauverFetiche(null);
+        render();
+        break;
       case "tout-debloquer-oui": {
         const X = exploits();
         EXPLOITS.forEach((e) => (X.faits[e.id] = true));
@@ -2397,10 +2454,11 @@
         afficherModale(`
           <p class="modal-sur">Progression</p>
           <h2>Recommencer la progression ?</h2>
-          <p>Les paliers débloqués, les exploits accomplis et les explications déjà lues seront effacés : vous repartirez du palier 1. Vos records restent.</p>
+          <p>Les paliers débloqués, les exploits accomplis, le joker fétiche et les explications déjà lues seront effacés : vous repartirez du palier 1. Vos records restent.</p>
           <div class="boutons"><button class="btn principal" data-act="reinit-paliers-oui">Oui, recommencer</button><button class="btn lien" data-act="close">Annuler</button></div>`, "regle-modal");
         break;
       case "reinit-paliers-oui":
+        sauverFetiche(null);
         sauverExploits({ faits: {} });
         sauverPaliers({ max: 1, gagnes: {}, vus: {} });
         palierChoisi = 0;
@@ -2584,5 +2642,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();
