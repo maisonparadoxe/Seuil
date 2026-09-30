@@ -206,15 +206,15 @@
   // Le nombre de pas est propre à chaque plan : environ 5,6 fois la distance la plus courte au premier étage,
   // 5,3 fois au deuxième, 5 fois au troisième.
   const PLANS = [
-    { id: "vestibule", nom: "Le vestibule", tier: 1, pas: 34, carte: ["..C..", ".....", ".....", ".B...", ".....", ".....", "..D.."] },
-    { id: "ailes", nom: "Les deux ailes", tier: 1, pas: 45, carte: ["C.#..", "..#..", ".....", ".#.#.", ".....", "..#..", "..D.."] },
-    { id: "palier", nom: "Le palier", tier: 1, pas: 45, carte: ["....C.", "......", ".#..#.", "......", ".#..#.", ".D...."] },
-    { id: "croix", nom: "La croix", tier: 2, pas: 32, carte: ["#.C.#", "#...#", ".....", ".....", ".....", "#...#", "#.D.#"] },
-    { id: "piliers", nom: "Les piliers", tier: 2, pas: 32, carte: ["..C..", ".#.#.", ".....", ".#.#.", ".....", ".#.#.", "..D.."] },
-    { id: "aile", nom: "L'aile brisée", tier: 2, pas: 58, carte: ["C....", ".....", ".###.", ".....", ".....", ".###.", ".....", "....D"] },
-    { id: "anneau", nom: "L'anneau", tier: 3, pas: 50, carte: ["..C..", ".....", ".###.", ".###.", ".....", ".....", "..D.."] },
-    { id: "hall", nom: "Le grand hall", tier: 3, pas: 40, carte: ["..C..", ".....", ".#.#.", ".....", "..S..", ".....", ".#.#.", ".....", "..D.."] },
-    { id: "derniere", nom: "La dernière porte", tier: 3, pas: 60, carte: [".....C", "......", ".##...", "......", "...##.", "......", ".P....", "D....."] },
+    { id: "vestibule", nom: "Le vestibule", tier: 1, pas: 34, carte: ["..C..", ".....", "...?.", ".B...", ".?...", ".....", "..D.."] },
+    { id: "ailes", nom: "Les deux ailes", tier: 1, pas: 45, carte: ["C.#..", "..#..", ".?...", ".#.#.", "...?.", "..#..", "..D.."] },
+    { id: "palier", nom: "Le palier", tier: 1, pas: 45, carte: ["....C.", "..?...", ".#..#.", "....?.", ".#..#.", ".D...."] },
+    { id: "croix", nom: "La croix", tier: 2, pas: 32, carte: ["#.C.#", "#...#", "...?.", ".?...", "..?..", "#...#", "#.D.#"] },
+    { id: "piliers", nom: "Les piliers", tier: 2, pas: 32, carte: ["..C..", ".#.#.", ".?.?.", ".#.#.", "...?.", ".#.#.", "..D.."] },
+    { id: "aile", nom: "L'aile brisée", tier: 2, pas: 58, carte: ["C....", "..?..", ".###.", ".....", "...?.", ".###.", ".?...", "....D"] },
+    { id: "anneau", nom: "L'anneau", tier: 3, pas: 50, carte: ["..C..", ".?.?.", ".###.", ".###.", "?...?", ".....", "..D.."] },
+    { id: "hall", nom: "Le grand hall", tier: 3, pas: 40, carte: ["..C..", ".?...", ".#.#.", "...?.", "..S..", ".?...", ".#.#.", "...?.", "..D.."] },
+    { id: "derniere", nom: "La dernière porte", tier: 3, pas: 60, carte: [".....C", "..?...", ".##...", "....?.", "...##.", ".?..?.", ".P....", "D....."] },
     // Plan réservé aux tests automatiques : jamais tiré (étage 0)
     { id: "essai", nom: "Plan d'essai", tier: 0, pas: 45, carte: ["..C..", ".....", ".....", ".....", ".....", ".....", ".....", ".....", "..D.."] },
   ];
@@ -252,10 +252,13 @@
       ],
     },
     {
-      n: 4, id: "cases", nom: "Cases spéciales", pret: false,
+      n: 4, id: "cases", nom: "Cases spéciales", pret: true,
       resume: "Des cases qui changent les règles un instant.",
       texte: [
-        "Certaines cases du plan, marquées d'un « ? », ont un <b>environnement spécial</b> : un bonus, une interdiction de pose ou un malus qui dure jusqu'à la prochaine salle posée.",
+        "Certaines cases du plan, marquées d'un <b>« ? »</b>, ont un <b>environnement spécial</b>. Vous savez qu'il y en a une, mais pas laquelle : l'effet se révèle <b>quand vous arrivez</b> sur la case.",
+        "Il y a trois sortes d'effets : des <b>bonus</b> (un pas gratuit, des pièces, un sceau), des <b>interdictions de pose</b> (« pas de salle rouge ici »), et des <b>malus</b> (jokers coupés, porte plus dure, pas perdus).",
+        "Un effet dure <b>jusqu'à la prochaine salle posée</b> : il touche votre prochain pas, votre prochaine énigme, votre prochain tirage, puis il s'éteint. Les interdictions sont révélées quand vous ouvrez la porte vers la case, avant de choisir la salle.",
+        "Ces cases font partie du terrain : les gemmes ne les déplacent pas, seules les salles glissent au-dessus.",
       ],
     },
     {
@@ -268,6 +271,24 @@
       ],
     },
   ];
+  // ---- Cases spéciales : huit environnements ----
+  // cat : bonus (à l'arrivée), interdiction (révélée quand on ouvre la porte vers la case), malus.
+  const ENVIRONNEMENTS = {
+    passe_libre: { nom: "Passe libre", cat: "bonus", icone: "👣", desc: "La prochaine salle où vous entrez ne coûte aucun pas." },
+    filon: { nom: "Filon", cat: "bonus", icone: "💰", desc: "+3 pièces." },
+    cle_oubliee: { nom: "Clé oubliée", cat: "bonus", icone: "🗝", desc: "+1 sceau." },
+    interdit_couleur: { nom: "Interdit de couleur", cat: "interdiction", icone: "🚫", desc: (e) => "Ici, pas de salle de couleur " + THEMES[e.param].nom + " (" + THEMES[e.param].glyphe + ")." },
+    pas_cul_de_sac: { nom: "Pas de cul-de-sac", cat: "interdiction", icone: "⛔", desc: "Ici, la salle posée doit avoir au moins une sortie." },
+    brouillard: { nom: "Brouillard", cat: "malus", icone: "🌫", desc: "Vos jokers sont coupés jusqu'à la prochaine salle posée." },
+    serrure_grippee: { nom: "Serrure grippée", cat: "malus", icone: "🔒", desc: "La prochaine porte est d'un niveau plus dur (3 au maximum)." },
+    eboulis: { nom: "Éboulis", cat: "malus", icone: "⛏", desc: "−2 pas." },
+  };
+  const CATEGORIES_ENV = ["bonus", "interdiction", "malus"];
+  const texteEnv = (e) => {
+    const d = ENVIRONNEMENTS[e.id].desc;
+    return typeof d === "function" ? d(e) : d;
+  };
+
   const reglesDe = (n) => ({ murs: n >= 2, jokers: n >= 3, cases: n >= 4, gemmes: n >= 5 });
   const RATIO_PAS = { 0: 5.6, 1: 5.6, 2: 5.3, 3: 5.0 }; // pas = ratio × distance la plus courte, selon les règles actives
   const palierDe = (n) => PALIERS.find((p) => p.n === n);
@@ -305,6 +326,7 @@
     const nr = rows.length, nc = rows[0].length;
     const mur = Array.from({ length: nr }, () => Array(nc).fill(false));
     const fixes = [];
+    const speciales = [];
     let start = null, goal = null;
     rows.forEach((ligne, r) => {
       if (ligne.length !== nc) throw new Error("Plan " + plan.id + " : lignes de longueurs différentes");
@@ -314,6 +336,7 @@
         else if (ch === "D") start = { r, c };
         else if (ch === "C") goal = { r, c };
         else if (SALLES_FIXES[ch] && regles.murs) fixes.push({ r, c, id: SALLES_FIXES[ch] });
+        else if (ch === "?" && regles.cases) speciales.push({ r, c }); // sans la règle, un ? est une case libre
       });
     });
     if (!start || !goal) throw new Error("Plan " + plan.id + " : départ ou Chambre manquant");
@@ -330,7 +353,7 @@
         file.push([a, b]);
       }
     }
-    return { rows: nr, cols: nc, mur, fixes, start, goal, dist };
+    return { rows: nr, cols: nc, mur, fixes, speciales, start, goal, dist };
   }
 
   const HALL = { id: "hall", nom: "Vestibule", court: "Vestibule", kind: "start", desc: "Un vestibule glacé. Sur le linteau, une salamandre et ces mots : NUTRISCO ET EXTINGUO." };
@@ -627,6 +650,14 @@
     P.fixes.forEach((f) => {
       G.grid[f.r][f.c] = { tpl: SALLES_PAR_ID[f.id], doors: portesLibres(f.r, f.c), visited: false, fixe: true, theme: null };
     });
+    // Cases spéciales : les emplacements viennent du plan, les effets sont tirés par la graine
+    G.speciales = {};
+    G.envs = [];
+    if (G.regles.cases && P.speciales.length) {
+      const effets = avecFlux("cases:" + n, () => tirerEffets(P.speciales.length));
+      const cases = avecFlux("cases-pos:" + n, () => shuffle(P.speciales));
+      cases.forEach((c, i) => (G.speciales[c.r + "," + c.c] = { id: effets[i].id, param: effets[i].param, revele: false, declenche: false }));
+    }
     // Les pas suivent la forme du plan avec les règles actives : environ 5,6 fois la distance au 1er étage, 5,3 au 2e, 5 au 3e
     const pas = Math.round((RATIO_PAS[plan.tier] || 5.6) * G.dist0);
     G.stepsMax = Math.max(5, pas - (aJoker("sablier2") ? 3 : 0)); // le Sablier fêlé retire 3 pas à chaque étage
@@ -638,7 +669,24 @@
     G.shift = null;
     G.boutique = null;
     G.visite = null;
-    log("Étage " + n + " sur " + ETAGES_TOTAL + " : « " + plan.nom + " ». " + G.stepsMax + " pas.");
+    log("Étage " + n + " sur " + ETAGES_TOTAL + " : « " + plan.nom + " ». " + G.stepsMax + " pas." + (Object.keys(G.speciales).length ? " " + Object.keys(G.speciales).length + " case" + (Object.keys(G.speciales).length > 1 ? "s" : "") + " spéciale" + (Object.keys(G.speciales).length > 1 ? "s" : "") + " (?)." : ""));
+  }
+
+  // n effets répartis entre bonus, interdictions et malus : toujours un bonus d'abord, puis un mélange
+  function tirerEffets(n) {
+    const par = { bonus: [], interdiction: [], malus: [] };
+    Object.keys(ENVIRONNEMENTS).forEach((id) => par[ENVIRONNEMENTS[id].cat].push(id));
+    const ordre = ["bonus"].concat(shuffle(["interdiction", "malus"]));
+    const pris = new Set();
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const cat = i < 3 ? ordre[i] : pick(CATEGORIES_ENV);
+      const libres = par[cat].filter((id) => !pris.has(id));
+      const id = pick(libres.length ? libres : par[cat]);
+      pris.add(id);
+      out.push({ id, param: id === "interdit_couleur" ? pick(THEME_IDS) : null });
+    }
+    return out;
   }
 
   function log(msg) {
@@ -766,11 +814,21 @@
         }
       }
     }
+    // Case spéciale à interdiction : cartes concernées grisées ; si toutes le sont, l'interdiction est levée
+    const spI = G.speciales[tr + "," + tc];
+    if (spI && ENVIRONNEMENTS[spI.id].cat === "interdiction") {
+      cands.forEach((cd) => (cd.interdit = spI.id === "interdit_couleur" ? cd.card.theme === spI.param : cd.sorties === 0));
+      if (cands.length && cands.every((cd) => cd.interdit)) {
+        cands.forEach((cd) => (cd.interdit = false));
+        cands.levee = true;
+      }
+    }
     return cands;
   }
 
   // ---- Jokers : aides et effets ----
-  const aJoker = (id) => !!G && G.jokers.includes(id);
+  const brouillard = () => !!G && !!G.envs && G.envs.some((e) => e.id === "brouillard");
+  const aJoker = (id) => !!G && G.jokers.includes(id) && !brouillard(); // le Brouillard coupe les jokers
   const plafondDeck = () => PLAFOND_DECK + (aJoker("sacoche") ? 3 : 0) - (aJoker("pacte") ? 3 : 0);
   const bonusTemps = () => G.timeBonus + (aJoker("loupe") ? 5 : 0) + (aJoker("sablier2") ? 10 : 0);
   const tempsPorte = (niveau) => (TEMPS_BASE[niveau] || 35) + bonusTemps();
@@ -1018,8 +1076,42 @@
       log("La porte est entrouverte : personne ne l'a verrouillée.");
       return ouvrirTirage(d);
     }
-    G.pending = { r, c, d, level: e.level, theme: e.theme };
+    const grippee = G.envs.some((x) => x.id === "serrure_grippee");
+    G.pending = { r, c, d, level: grippee ? Math.min(3, e.level + 1) : e.level, theme: e.theme, grippee };
     modalePorte();
+  }
+
+  // Révèle l'effet d'une case spéciale (bulle et journal)
+  function reveler(sp) {
+    if (sp.revele) return;
+    sp.revele = true;
+    const E = ENVIRONNEMENTS[sp.id];
+    log("✦ Case spéciale : " + E.icone + " " + E.nom + ". " + texteEnv(sp));
+    toast("✦ " + E.icone + " " + E.nom + " : " + texteEnv(sp));
+  }
+
+  function arriveeSpeciale(sp) {
+    sp.declenche = true;
+    reveler(sp);
+    switch (sp.id) {
+      case "filon":
+        G.coins += 3;
+        break;
+      case "cle_oubliee":
+        G.seals += 1;
+        break;
+      case "eboulis":
+        G.steps = Math.max(0, G.steps - 2);
+        break;
+      case "passe_libre":
+      case "brouillard":
+      case "serrure_grippee":
+        G.envs.push({ id: sp.id, posee: false });
+        break;
+      default:
+        break; // les interdictions ont déjà servi au moment du choix de la salle
+    }
+    son(ENVIRONNEMENTS[sp.id].cat === "malus" ? "rature" : "crayon-note");
   }
 
   function deplacer(d) {
@@ -1027,7 +1119,13 @@
     const room = G.grid[r2][c2];
     let cout = 1;
     const depart = G.grid[G.pos.r][G.pos.c];
-    if (aJoker("sentier") && depart.theme && depart.theme === room.theme && avecFlux("sentier:" + G.moves, () => R() < 0.5)) {
+    const passeLibre = G.envs.find((e) => e.id === "passe_libre");
+    if (passeLibre) {
+      cout = 0; // Passe libre : la prochaine salle où l'on entre ne coûte aucun pas
+      G.envs.splice(G.envs.indexOf(passeLibre), 1);
+      toast(ENVIRONNEMENTS.passe_libre.icone + " Passe libre : ce pas ne coûte rien");
+      log("👣 Passe libre : ce pas ne coûte rien.");
+    } else if (aJoker("sentier") && depart.theme && depart.theme === room.theme && avecFlux("sentier:" + G.moves, () => R() < 0.5)) {
       cout = 0;
       declencher("sentier", "ce pas ne coûte rien");
     }
@@ -1035,12 +1133,17 @@
     G.moves += 1;
     G.pos = { r: r2, c: c2 };
     son("page");
+    // Les effets dont la « prochaine salle » vient d'être posée s'éteignent après ce pas
+    G.envs = G.envs.filter((e) => !e.posee);
     if (!room.visited) {
       room.visited = true;
       appliquer(room);
       if (room.tpl.fx && room.tpl.fx.shop) G.visite = "carte";
       else if (room.marchand) G.visite = "passage";
     }
+    // Arrivée sur une case spéciale : l'effet se révèle et s'applique (une seule fois)
+    const sp = G.speciales[r2 + "," + c2];
+    if (sp && !sp.declenche) arriveeSpeciale(sp);
     if (room.goal) return G.etage < ETAGES_TOTAL ? finEtage() : finir("win");
     if (G.steps <= 0) return finir("steps");
     if (impasse()) return finir("stuck");
@@ -1082,7 +1185,10 @@
   function ouvrirTirage(d) {
     const { r, c } = G.pos;
     const tr = r + DIRS[d].dr, tc = c + DIRS[d].dc;
-    G.draft = { d, tr, tc, sel: null, cands: tirage(d, tr, tc) };
+    const cands = tirage(d, tr, tc);
+    G.draft = { d, tr, tc, sel: null, cands, levee: !!cands.levee };
+    const sp = G.speciales[tr + "," + tc];
+    if (sp && ENVIRONNEMENTS[sp.id].cat === "interdiction") reveler(sp); // révélée avant le choix de la salle
     render();
     defilerVersCible();
   }
@@ -1090,6 +1196,8 @@
   function choisir(i) {
     const D = G.draft;
     const cand = D.cands[i];
+    if (cand.interdit) return interditIci(cand);
+    G.envs.forEach((e) => (e.posee = true)); // la prochaine salle est posée : ces effets s'éteindront après le pas qui y entre
     G.grid[D.tr][D.tc] = { tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme, card: cand.card };
     defausserMain(D.cands); // les trois cartes tirées vont à la défausse
     G.rooms += 1;
@@ -1113,9 +1221,16 @@
     deplacer(d);
   }
 
+  function interditIci(cand) {
+    const sp = G.speciales[G.draft.tr + "," + G.draft.tc];
+    son("rature");
+    toast("🚫 Interdit ici : " + (sp ? texteEnv(sp) : "cette salle ne peut pas être posée."));
+  }
+
   function apercu(i) {
     const D = G.draft;
     if (!D || !D.cands[i]) return;
+    if (D.cands[i].interdit) return interditIci(D.cands[i]);
     if (D.sel === i) return choisir(i);
     D.sel = i;
     son("clic");
@@ -1140,6 +1255,7 @@
     const D = G.draft;
     defausserMain(D.cands);
     D.cands = tirage(D.d, D.tr, D.tc);
+    D.levee = !!D.cands.levee;
     D.sel = null;
     log("Vous jouez un dé : trois nouvelles cartes.");
     son("clic");
@@ -1218,8 +1334,17 @@
   // ------------------------------------------------------------------
   // Énigmes
   // ------------------------------------------------------------------
+  function consommerGrippee() {
+    const i = G.envs.findIndex((x) => x.id === "serrure_grippee");
+    if (i >= 0) {
+      G.envs.splice(i, 1);
+      log("🔒 La serrure grippée cède.");
+    }
+  }
+
   function demarrerEnigme() {
     const P = G.pending;
+    if (P.grippee) consommerGrippee();
     const porte = G.grid[P.r][P.c].door[P.d];
     const p = avecFlux("enigme:" + G.etage + ":" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => makePuzzle(P.level, P.theme));
     porte.essais = (porte.essais || 0) + 1; // une porte retentée pose une autre énigme
@@ -1295,6 +1420,7 @@
     if (G.seals < 1) return;
     G.seals -= 1;
     const P = G.pending;
+    if (P.grippee) consommerGrippee();
     G.grid[P.r][P.c].door[P.d].status = "open";
     log("Vous posez un sceau sur la serrure : la porte s'ouvre d'elle-même.");
     son("deblocage");
@@ -1471,6 +1597,13 @@
             cls += " ghost";
           } else contenu = `<span class="cible-q">?</span>`;
         } else cls += " empty";
+        const sp = G.speciales[r + "," + c];
+        if (sp) {
+          cls += " speciale";
+          if (sp.revele) contenu += `<span class="badge-env" title="${esc(ENVIRONNEMENTS[sp.id].nom + " : " + texteEnv(sp))}">${ENVIRONNEMENTS[sp.id].icone}</span>`;
+          else if (!room && !cible) contenu += `<span class="q-spe" title="Case spéciale : effet inconnu">?</span>`;
+          else contenu += `<span class="badge-env" title="Case spéciale : effet inconnu">?</span>`;
+        }
         h += `<div class="${cls}" role="gridcell" data-cell="${r},${c}"${action}>${contenu}</div>`;
       }
     }
@@ -1587,6 +1720,16 @@
     return h + `<button class="btn lien mini-btn" data-act="shift-cancel">Annuler</button></div>`;
   }
 
+  function envsHTML() {
+    if (!G.regles.cases || !Object.keys(G.speciales).length) return "";
+    const inconnues = Object.keys(G.speciales).filter((k) => !G.speciales[k].declenche && !G.speciales[k].revele).length;
+    const lignes = G.envs.map((e) => `<li class="env-${ENVIRONNEMENTS[e.id].cat}">${ENVIRONNEMENTS[e.id].icone} <b>${esc(ENVIRONNEMENTS[e.id].nom)}</b> : ${esc(texteEnv(e))}</li>`);
+    return `<section class="carte">
+      <h3>Environnement <span class="compte">${inconnues} ?</span></h3>
+      ${lignes.length ? `<ul class="env-liste">${lignes.join("")}</ul><p class="note">Jusqu'à la prochaine salle posée.</p>` : `<p class="vide">Aucun effet en cours.${inconnues ? " " + inconnues + " case" + (inconnues > 1 ? "s" : "") + " « ? » à découvrir." : ""}</p>`}
+    </section>`;
+  }
+
   function panneauHTML() {
     const room = G.grid[G.pos.r][G.pos.c];
     const pct = Math.max(0, Math.min(100, (G.steps / G.stepsMax) * 100));
@@ -1607,6 +1750,7 @@
     </div>
     ${G.draft ? tirageHTML() : ""}
     ${jokersHTML()}
+    ${envsHTML()}
     <section class="carte">
       <h3>Vous êtes ici</h3>
       <p class="salle-nom">${esc(room.tpl.nom)}</p>
@@ -1667,7 +1811,7 @@
         continue;
       }
       const j = JOKERS_PAR_ID[id];
-      cases.push(`<button class="joker${j.maudit ? " maudit" : ""}${G.flash === id ? " decl" : ""}" style="--r:${RARETES[j.rar].couleur}" data-act="joker" data-id="${id}">
+      cases.push(`<button class="joker${j.maudit ? " maudit" : ""}${G.flash === id ? " decl" : ""}${brouillard() ? " coupe" : ""}" style="--r:${RARETES[j.rar].couleur}" data-act="joker" data-id="${id}"${brouillard() ? ' title="Coupé par le Brouillard"' : ""}>
         <span class="j-ico">${j.icone}</span><span class="j-nom">${esc(j.nom)}</span><span class="j-desc">${esc(j.desc)}</span></button>`);
     }
     return `<section class="carte jokers"><h3>Jokers <span class="compte">${G.jokers.length}/${G.slots}</span></h3><div class="joker-liste">${cases.join("")}</div></section>`;
@@ -1764,6 +1908,7 @@
       <p class="modal-sur">Porte du ${d.nom} ${d.fleche}</p>
       <h2>Une serrure sans clé</h2>
       <p class="niveau"><span class="theme-tag" style="--t:${T.couleur}">${T.glyphe} ${T.nom}</span> Difficulté <span class="pips">${pips}</span></p>
+      ${P.grippee ? `<p class="tirage-env">🔒 Serrure grippée : cette porte est plus dure qu'elle ne devrait.</p>` : ""}
       <p>Une seule tentative, ${temps} secondes. Si vous échouez, la porte est condamnée pour toute la partie.${aJoker("souffle") && !G.souffle ? " 💨 Second souffle : ce premier échec ne condamnera pas la porte." : ""}</p>
       <div class="boutons">
         <button class="btn principal" data-act="try">Tenter l'énigme</button>
@@ -1829,7 +1974,8 @@
       .map((cd, i) => {
         const cotes = [0, 1, 2, 3].map((k) => (cd.doors.includes(k) ? { s: "gap" } : { s: "wall" }));
         const sel = D.sel === i;
-        return `<button class="carte-salle ${cd.tpl.kind}${sel ? " sel" : ""}" data-act="apercu" data-i="${i}" aria-pressed="${sel}">
+        return `<button class="carte-salle ${cd.tpl.kind}${sel ? " sel" : ""}${cd.interdit ? " interdit" : ""}" data-act="apercu" data-i="${i}" aria-pressed="${sel}">
+          ${cd.interdit ? `<span class="cs-fx">🚫 Interdit ici</span>` : ""}
           <span class="mini">${salleSVG(cd.tpl, cotes, { entree: opp(D.d), theme: cd.theme })}</span>
           <span class="cs-nom">${esc(cd.tpl.nom)}${cd.card.temp ? ` <span class="temp-tag">🗝 temporaire</span>` : ""}</span>
           <span class="cs-desc">${esc(cd.tpl.desc)}</span>
@@ -1839,8 +1985,13 @@
         </button>`;
       })
       .join("");
+    const spD = G.speciales[D.tr + "," + D.tc];
+    const bandeau = spD && ENVIRONNEMENTS[spD.id].cat === "interdiction"
+      ? `<p class="tirage-env">${ENVIRONNEMENTS[spD.id].icone} ${esc(texteEnv(spD))}${D.levee ? " Aucune des trois salles ne convient : l'interdiction est levée." : ""}</p>`
+      : "";
     return `<section class="tirage-panel" aria-label="Choix de la salle">
       <h3>Porte du ${DIRS[D.d].nom} ${DIRS[D.d].fleche} : quelle salle ?</h3>
+      ${bandeau}
       <p class="tirage-aide">${D.sel === null ? "Touchez une salle pour la voir sur le plan, à l'emplacement marqué ?" : "Aperçu sur le plan. Touchez « Choisir » (ou la salle) pour la poser."}</p>
       <div class="tirage n${D.cands.length}">${cartes}</div>
       <div class="boutons">
@@ -2078,6 +2229,7 @@
     if (R2.jokers) li.push("<b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi" + (R2.gemmes ? ", gemmes plus puissantes" : "") + "... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.");
     li.push("<b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.");
     if (R2.gemmes) li.push("<b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes, les murs et la salle où vous vous trouvez ne bougent pas : les autres salles de la ligne glissent en les sautant. Il faut au moins une salle mobile dans la ligne ; sinon la gemme est grisée. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.");
+    if (R2.cases) li.push("<b>Cases spéciales « ? ».</b> Certaines cases du plan cachent un environnement : bonus (pas gratuit, pièces, sceau), interdiction de pose (une couleur, les culs-de-sac) ou malus (jokers coupés, porte plus dure, pas perdus). L'effet se révèle quand vous y arrivez (les interdictions, quand vous ouvrez la porte vers la case) et dure jusqu'à la prochaine salle posée. Les gemmes ne déplacent pas ces cases.");
     li.push("<b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.");
     const n = G ? G.palier : palierEffectif();
     afficherModale(`
@@ -2328,5 +2480,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

@@ -307,6 +307,19 @@ body.menu-mode #app { max-width: none; padding: 0; }
 .cell.ghost .room-svg { filter: none; opacity: 0.96; }
 .cible-q { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 30px; color: var(--gold); }
 
+/* Cases spéciales (palier 4) */
+.cell.speciale { box-shadow: inset 0 0 0 2px rgba(185, 139, 42, 0.55); }
+.q-spe { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 26px; color: var(--gold); opacity: 0.85; pointer-events: none; }
+.badge-env { position: absolute; top: 2px; right: 2px; z-index: 4; font-size: 15px; line-height: 1; background: rgba(28, 22, 16, 0.78); border-radius: 50%; padding: 2px; pointer-events: none; }
+.joker.coupe { opacity: 0.4; filter: grayscale(1); }
+.carte-salle.interdit { opacity: 0.45; filter: grayscale(0.8); cursor: not-allowed; }
+.carte-salle.interdit:hover { transform: none; border-color: var(--ink); }
+.tirage-env { margin: 0 0 8px; padding: 6px 8px; border: 1px dashed var(--stamp-red); font-family: var(--font-mono); font-size: 11.5px; line-height: 1.4; color: var(--stamp-red); }
+.env-liste { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.env-liste li { margin: 2px 0; }
+.env-liste .env-bonus { color: #3d6b34; }
+.env-liste .env-malus { color: var(--stamp-red); }
+
 @media (max-width: 860px) {
   .tirage-panel {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-height: 50vh; overflow-y: auto;

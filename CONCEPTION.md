@@ -192,13 +192,14 @@ Chaque étape se teste seule.
 3. **Les jokers** (fait). Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement.
 4. **Les niveaux** (fait). Plans en texte, murs et salles fixes, décalage adapté, trois étages.
 5. **Les paliers** (fait). La liste de règles actives, la sauvegarde des paliers débloqués, l'écran de choix du palier, le raccourci « tout débloquer », le filtrage des cartes et des jokers qui dépendent d'une règle éteinte. On la fait **avant** les cases spéciales, pour que celles-ci naissent déjà derrière leur interrupteur.
-6. **Les cases spéciales.** Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée. Palier 4.
+6. **Les cases spéciales** (fait). Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée. Palier 4.
 7. **Le reste de la progression.** Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.
 
 Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
 ## 5 bis. Avancement
 
+- **Étape 6 : les cases spéciales, faite** (voir plus bas).
 - **Étape 5 : les paliers, faite** (voir plus bas).
 - **Étape 4 : les niveaux, faite** (voir plus bas).
 - **Étape 3 : les jokers, faite** (voir plus bas).
@@ -284,9 +285,19 @@ Vérifié par des tests automatiques : validité des 18 plans (chemin, aucune ca
 - **Déblocage.** Une victoire (Chambre du 3ᵉ étage) débloque le palier suivant **prêt** : le palier 4 n'étant pas encore construit, gagner le palier 3 débloque le palier 5. Une défaite ne fait rien perdre. Sauvegarde dans le navigateur (`seuil-paliers`).
 - **Raccourcis.** « Je connais déjà le jeu : tout débloquer » (avec confirmation) ouvre tous les paliers et marque les explications comme lues. « Recommencer la progression » (avec confirmation) remet tout à zéro ; les records restent.
 - **Défi du jour.** Il joue le jeu complet et n'est disponible qu'une fois tous les paliers débloqués (ou après « tout débloquer »).
-- **Reste à faire.** Le palier 4 (cases spéciales) est en attente de l'étape 6. Le mode libre à l'ordre tiré par la graine est prévu à l'étape 7.
+- **Reste à faire.** Le mode libre à l'ordre tiré par la graine est prévu à l'étape 7. (Le palier 4 est maintenant prêt : la chaîne de déblocage est 1 → 2 → 3 → 4 → 5.)
 
 Vérifié par des tests automatiques : verrouillage au départ, texte du palier 1, aucune règle avancée au palier 1 (ni mur, ni salle fixe, ni joker, ni gemme, ni salle à gemmes sur 400 offres), pas recalculés, victoire → déblocage avec texte explicatif, explication affichée une seule fois, saut du palier 4, filtrage des jokers de gemmes au palier 3 (12 jokers sur 15), 15 jokers au palier 5, défi du jour verrouillé puis disponible, sauvegarde après rechargement, « tout débloquer » et « recommencer », même graine et même palier = même partie ; et toutes les anciennes suites (économie, jokers, niveaux, déterminisme).
+
+### Étape 6 : les cases spéciales (faite)
+
+- **Plans.** Le symbole `?` marque les cases spéciales : 2 au 1ᵉʳ étage, 3 au 2ᵉ, 4 au 3ᵉ. Jamais sur un mur, le départ, la Chambre, une salle fixe, ni à côté du départ. Sans la règle (paliers 1 à 3), un `?` est une case libre.
+- **Effets.** Huit environnements : Passe libre, Filon (+3 pièces), Clé oubliée (+1 sceau) ; Interdit de couleur, Pas de cul-de-sac ; Brouillard (jokers coupés), Serrure grippée (prochaine porte +1 niveau, 3 max), Éboulis (−2 pas). Le tirage donne toujours un bonus d'abord, puis un mélange d'interdictions et de malus, tous distincts. Emplacements et effets viennent de la graine (`cases`, `cases-pos`).
+- **Révélation.** Les `?` sont visibles dès le début. L'effet se révèle à l'arrivée sur la case ; une interdiction, dès l'ouverture de la porte vers la case (bandeau dans le tirage, cartes concernées grisées et refusées). Si les trois cartes sont interdites, l'interdiction est levée.
+- **Durée.** Un effet dure jusqu'à la prochaine salle posée : il s'éteint après le pas qui entre dans cette salle. Une case ne se déclenche qu'une fois. Les cases sont liées aux coordonnées : les gemmes ne les déplacent pas.
+- **Interface.** Case dorée avec « ? » puis pastille de l'icône une fois révélée ; carte « Environnement » dans le panneau ; jokers grisés dans le brouillard ; mention dans la modale de porte pour la serrure grippée ; puce dans « Comment jouer ».
+
+Vérifié par des tests automatiques : nombre et placement des `?` sur les 9 plans, tirage des effets (bonus d'abord, distincts, les 8 apparaissent), déterminisme par graine, aucune case au palier 3, chacun des huit effets, déclenchement unique, gemmes sans effet sur les cases, chaîne de déblocage 1 → 5 ; et toutes les anciennes suites.
 
 ## 6. Risques à surveiller
 
