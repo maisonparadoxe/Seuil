@@ -2,7 +2,7 @@
 
 Ce document garde la mémoire des décisions prises pour faire évoluer Seuil d'un prototype de labyrinthe à énigmes vers un **deckbuilder roguelike où les salles sont les cartes**. Chaque décision a été discutée et tranchée. Il ne reste que quelques détails de contenu, listés en fin de document.
 
-Dernière mise à jour : 30 septembre 2026 (cases spéciales décidées).
+Dernière mise à jour : 30 septembre 2026 (paliers décidés).
 
 ## 1. Où en est le jeu aujourd'hui
 
@@ -153,6 +153,26 @@ Le contenu se débloque par **des exploits ciblés, lisibles** (le joueur voit c
 - Les fragments du carnet de Valcourt débloquent les cartes liées à l'histoire.
 - Perdre ne bloque pas la progression : les exploits se valident même dans une partie perdue.
 
+### 3.6 Les paliers : une progression des règles
+
+Le jeu complet a beaucoup de règles. Pour ne pas les imposer d'un coup, elles arrivent **par paliers**, débloqués entre les parties.
+
+| Sujet | Décision |
+| --- | --- |
+| Structure | Une partie reste de **3 étages**. Gagner un palier (atteindre la Chambre du 3ᵉ étage) débloque le suivant, qui ajoute **une règle**. On peut rejouer n'importe quel palier déjà débloqué. Le dernier palier est le jeu complet. |
+| Ordre (première campagne) | **Fixe** : 1 jeu de base · 2 murs et salles fixes · 3 jokers · 4 cases spéciales · 5 gemmes. Les gemmes viennent en dernier : c'est la règle la plus lourde à manier (choisir une ligne, puis un sens). |
+| Jeu de base (palier 1) | Énigmes, portes, pas, deck de 8 cartes avec pioche et défausse, pièces, récompenses, boutique entre les étages. **Sans** murs, salles fixes, jokers, gemmes, cases spéciales. |
+| Ordre ensuite | Une fois tout débloqué, le défi du jour et un **mode libre** peuvent **tirer l'ordre des règles avec la graine**, avec des garde-fous pour respecter les dépendances. |
+| Déblocage | **Une victoire** débloque le palier suivant. Une défaite ne fait rien perdre. Un bouton « Je connais déjà le jeu : tout débloquer », après confirmation, mène directement au jeu complet. |
+| Sauvegarde | Dans le navigateur (`localStorage`) : paliers débloqués. Attention : elle ne suit pas d'un appareil à l'autre ; le raccourci « tout débloquer » sert aussi à ça. |
+
+Conséquences techniques à respecter :
+
+- **Une liste de règles actives** (murs, jokers, cases spéciales, gemmes) est fixée au départ de la partie selon le palier. Chaque règle est un interrupteur : quand elle est éteinte, elle disparaît complètement (rien à l'écran, rien dans les pools).
+- **Les plans sont partagés entre les paliers.** Un plan est dessiné une seule fois. Quand les murs sont éteints, les `#` deviennent des cases libres ; quand les salles fixes sont éteintes, `B`, `P`, `S` et `F` deviennent des cases libres ; quand les cases spéciales sont éteintes, les `?` disparaissent. Les pas de chaque plan devront être recalculés quand un plan change de forme.
+- **Des dépendances à filtrer.** Les cartes à gemmes (Cristallerie, Cave aux cristaux, Salle des engrenages, Colonne des vents) n'apparaissent en récompense ou en boutique que si les gemmes sont débloquées. Les jokers Ciseau de lapidaire, Poing des Gardiens et Baguette de sourcier demandent les gemmes ; Craie du géomètre et Sentier de couleur n'ont pas besoin des cases spéciales, mais Brouillard, un effet de case spéciale, a besoin des jokers. Le joker Sablier fêlé et l'ordre des règles restent indépendants.
+- **La graine** ne décide de l'ordre des règles que dans le mode libre et le défi du jour, pas pendant la première campagne.
+
 ## 4. Points encore ouverts
 
 Il ne reste que du contenu à écrire et à régler en jouant :
@@ -169,10 +189,11 @@ Chaque étape se teste seule.
 
 1. **Le moteur du deck** (fait). Générateur de hasard à graine, pioche, défausse et remélange, deck de départ.
 2. **L'économie** (fait). Monnaie, récompenses, Boutique, retrait, plafond de 15.
-3. **Les jokers** (fait). Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement. C'est là que vivent les effets de voisinage entre salles de même couleur.
-4. **Les niveaux** (fait). Format de plan en texte, cases murées et salles fixes, règle de décalage adaptée, suite de trois étages avec pas propres à chaque plan.
-5. **Les cases spéciales.** Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée.
-6. **La progression entre parties.** Cartes et jokers débloqués par des exploits, joker fétiche, écran des graines et défi du jour complets.
+3. **Les jokers** (fait). Emplacements, catalogue de 15 (12 simples et 3 malédictions), achat et revente en boutique, indicateur de déclenchement.
+4. **Les niveaux** (fait). Plans en texte, murs et salles fixes, décalage adapté, trois étages.
+5. **Les paliers.** La liste de règles actives, la sauvegarde des paliers débloqués, l'écran de choix du palier, le raccourci « tout débloquer », le filtrage des cartes et des jokers qui dépendent d'une règle éteinte. On la fait **avant** les cases spéciales, pour que celles-ci naissent déjà derrière leur interrupteur.
+6. **Les cases spéciales.** Symbole « ? » dans les plans, 8 effets, révélation à l'arrivée (ou au choix de la salle pour les interdictions), durée jusqu'à la prochaine salle posée. Palier 4.
+7. **Le reste de la progression.** Exploits, cartes et jokers débloqués, joker fétiche, défi du jour complet, mode libre à l'ordre tiré par la graine.
 
 Le bonus de voisinage, qui était une étape à part, a été supprimé en tant que règle de base : il n'existe que sous forme de jokers.
 
