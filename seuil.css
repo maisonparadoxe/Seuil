@@ -427,3 +427,7 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .board.shifting .cell.mur { opacity: 0.5; }
 .cell.fixe { box-shadow: 0 0 0 2px rgba(185, 139, 42, 0.55); }
 .cell.fixe .pin { position: absolute; top: -3px; right: -1px; font-size: 13px; z-index: 3; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); pointer-events: none; }
+
+.gem-btn.inutile { opacity: 0.55; }
+.shift-txt br { display: block; content: ""; margin-top: 4px; }
+.shift-txt { line-height: 1.4; }

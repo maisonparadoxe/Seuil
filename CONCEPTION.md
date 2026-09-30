@@ -84,7 +84,7 @@ Jokers « malédiction » : trois jokers puissants, de rareté peu commune ou ra
 | Difficulté | Elle monte par les portes : étage 1 surtout niveaux 1 et 2, étage 2 niveaux 2 et 3, étage 3 surtout niveau 3, avec plus de portes verrouillées et moins de portes ouvertes. |
 | Plans | **Écrits à la main**, en petite banque (2 ou 3 par niveau de difficulté). La graine choisit quel plan sert à chaque étage et peut le retourner en miroir. |
 | Cases immobiles | Deux types : les **cases murées** (obstacle : aucune salle dessus, on ne les traverse pas) et les **salles fixes** (posées d'avance, avec leurs portes, jamais déplacées, par exemple une Boutique). |
-| Gemmes et cases fixes | Quand une ligne ou colonne est décalée, **les cases fixes restent en place** et les salles mobiles glissent en sautant par-dessus. Le bouclage de Ravensburger est conservé. La ligne et la colonne du joueur restent hors d'atteinte. |
+| Gemmes et cases fixes | Quand une ligne ou colonne est décalée, **les cases fixes restent en place** et les salles mobiles glissent en sautant par-dessus. Le bouclage de Ravensburger est conservé. **La salle où se trouve le joueur est aussi une case immobile** : sa ligne et sa colonne restent décalables, les autres salles glissent en la sautant (règle modifiée le 30 septembre 2026, voir ci-dessous). |
 | Portes | Une porte contre une case murée est un mur, comme un bord de plan. |
 
 Un plan s'écrit en texte simple, par exemple avec `#` pour une case murée, `.` pour une case libre, `D` pour le départ, `C` pour la Chambre, `F` pour une salle fixe :
@@ -196,7 +196,8 @@ Vérifié par des tests automatiques : chaque effet séparément, l'achat, la re
 - **Format d'un plan** (texte, une chaîne par ligne) : `#` case murée, `.` case libre, `D` départ, `C` Chambre, `B` Boutique fixe, `P` Puits fixe, `S` Sanctuaire fixe, `F` Forge fixe. Les plans font au plus 6 colonnes pour rester lisibles sur un téléphone.
 - **Murs.** Aucune salle dessus, on ne les traverse pas, et une porte contre un mur n'existe pas (pas plus que contre le bord du plan).
 - **Salles fixes** (départ, Chambre, Boutique, Puits...). Elles sont posées d'avance avec leurs 4 portes et ne bougent jamais. Elles sont marquées d'une punaise 📌. La Chambre n'a qu'une porte, du côté d'une case libre (sud de préférence).
-- **Gemmes.** Le vestibule, la Chambre et les salles fixes ne bloquent plus le décalage : quand une ligne ou colonne glisse, **les cases fixes et les murs restent en place** et les salles mobiles tournent entre les cases mobiles en les sautant. Seules la ligne et la colonne du joueur restent hors d'atteinte (sauf avec le Poing des Gardiens, qui entraîne le joueur avec sa salle si celle-ci est mobile).
+- **Gemmes.** Le vestibule, la Chambre et les salles fixes ne bloquent plus le décalage : quand une ligne ou colonne glisse, **les cases fixes et les murs restent en place** et les salles mobiles tournent entre les cases mobiles en les sautant. La salle du joueur compte elle aussi comme une case immobile (sauf avec le Poing des Gardiens, qui l'entraîne avec sa ligne).
+- **Correction du 30 septembre 2026 : gemmes inutilisables.** La règle d'origine verrouillait la ligne et la colonne du joueur. Au début d'une partie, toutes les salles posées sont dans la colonne du joueur : aucune colonne n'était utilisable, le jeu disait « touchez une colonne » sans rien permettre. La salle du joueur est maintenant une case immobile comme les autres, et quand aucune ligne n'est utilisable, la barre l'explique et la gemme est grisée dans le panneau.
 
 Les 9 plans actuels :
 

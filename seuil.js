@@ -186,7 +186,7 @@
     { id: "alambic", nom: "Alambic", rar: "rare", famille: "Économie", icone: "⚗", desc: "Les pas, les dés et les sceaux des salles bonus sont doublés." },
     { id: "sablier2", nom: "Sablier fêlé", rar: "peu", maudit: true, famille: "Énigmes", icone: "⌛", desc: "+10 secondes à chaque énigme. Prix : 3 pas de moins tout de suite (et à chaque nouvel étage).", prix: "−3 pas" },
     { id: "pacte", nom: "Pacte du fondeur", rar: "peu", maudit: true, famille: "Économie", icone: "📜", desc: "+1 pièce à chaque énigme résolue. Prix : le plafond du deck est réduit de 3.", prix: "plafond −3" },
-    { id: "poing", nom: "Poing des Gardiens", rar: "rare", maudit: true, famille: "Gemmes", icone: "✊", desc: "Vos gemmes décalent toujours de 2 crans et peuvent aussi décaler votre propre ligne : votre salle est entraînée avec elle.", prix: "votre salle bouge aussi" },
+    { id: "poing", nom: "Poing des Gardiens", rar: "rare", maudit: true, famille: "Gemmes", icone: "✊", desc: "Vos gemmes décalent toujours de 2 crans, et votre propre salle est entraînée avec sa ligne au lieu de rester en place.", prix: "votre salle bouge aussi" },
   ];
   const JOKERS_PAR_ID = {};
   JOKERS.forEach((j) => (JOKERS_PAR_ID[j.id] = j));
@@ -1386,7 +1386,8 @@
       .map((g, i) => {
         const fl = g.axe === "H" ? "↔" : "↕";
         const actif = G.shift && G.shift.gi === i;
-        return `<button class="chip gem-btn${actif ? " actif" : ""}" data-act="gem" data-i="${i}" title="Gemme ${g.axe === "H" ? "horizontale : décale une ligne" : "verticale : décale une colonne"} de ${g.max === 2 ? "1 ou 2 crans" : "1 cran"}">💎 <b>${fl}</b>${g.max === 2 ? "<sup>2</sup>" : ""}</button>`;
+        const inutile = lignesUtiles(g.axe) === 0;
+        return `<button class="chip gem-btn${actif ? " actif" : ""}${inutile ? " inutile" : ""}" data-act="gem" data-i="${i}" title="Gemme ${g.axe === "H" ? "horizontale : décale une ligne" : "verticale : décale une colonne"} de ${g.max === 2 ? "1 ou 2 crans" : "1 cran"}${inutile ? ". Aucune " + (g.axe === "H" ? "ligne" : "colonne") + " à décaler pour l'instant." : ""}">💎 <b>${fl}</b>${g.max === 2 ? "<sup>2</sup>" : ""}</button>`;
       })
       .join("");
   }
@@ -1404,24 +1405,27 @@
       if (estMur(r, c)) continue;
       const salle = G.grid[r][c];
       if (salle && salle.fixe) continue;
+      // La salle où l'on se trouve reste en place (case immobile), sauf avec le Poing des Gardiens
+      if (r === G.pos.r && c === G.pos.c && !aJoker("poing")) continue;
       out.push({ r, c });
     }
     return out;
   }
 
   function ligneOk(axe, i) {
-    const poing = aJoker("poing"); // le Poing des Gardiens permet de décaler sa propre ligne
-    if (!poing && i === (axe === "H" ? G.pos.r : G.pos.c)) return false;
     const cases = casesMobiles(axe, i);
     return cases.length >= 2 && cases.some((x) => G.grid[x.r][x.c]);
   }
 
+  function lignesUtiles(axe) {
+    const n = axe === "H" ? ROWS : COLS;
+    let nb = 0;
+    for (let i = 0; i < n; i++) if (ligneOk(axe, i)) nb++;
+    return nb;
+  }
+
   function gemUtile() {
-    return G.gems.some((g) => {
-      const n = g.axe === "H" ? ROWS : COLS;
-      for (let i = 0; i < n; i++) if (ligneOk(g.axe, i)) return true;
-      return false;
-    });
+    return G.gems.some((g) => lignesUtiles(g.axe) > 0);
   }
 
   function decaler(k) {
@@ -1471,7 +1475,11 @@
     const H = g.axe === "H";
     const mot = H ? "ligne" : "colonne";
     let h = `<div class="shift-bar"><span class="shift-txt">💎 ${H ? "↔" : "↕"}${g.max === 2 ? " rare" : ""} : `;
-    if (S.sel === null) h += `touchez une ${mot} du plan.</span>`;
+    if (S.sel === null) {
+      h += lignesUtiles(g.axe) > 0
+        ? `touchez une ${mot} du plan.</span>`
+        : `aucune ${mot} ne peut être décalée pour l'instant.<br>Il faut au moins une salle mobile dans la ${mot}, et une case libre pour la faire glisser. Posez d'abord d'autres salles.</span>`;
+    }
     else {
       h += `${mot} ${S.sel + 1}, décaler :</span>`;
       const a = H ? "◀" : "▲", b = H ? "▶" : "▼";
@@ -1920,7 +1928,7 @@
         <li><b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.</li>
         <li><b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi, gemmes plus puissantes... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.</li>
         <li><b>La graine.</b> Chaque partie a une graine (six lettres). Avec la même graine, vous retrouvez la même partie : mêmes portes, mêmes énigmes, même pioche. Copiez-la pour rejouer ou partager. Le « Défi du jour » donne la même graine à tout le monde.</li>
-        <li><b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes et les murs ne bougent pas, et la ligne et la colonne où vous vous trouvez restent hors d'atteinte. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.</li>
+        <li><b>Gemmes ↔ et ↕.</b> Une gemme décale toute une ligne (↔) ou toute une colonne (↕) du plan d'un cran, en bouclant : la salle qui sort d'un côté réapparaît de l'autre. Les gemmes rares vont jusqu'à deux crans. Le vestibule, la Chambre, les salles fixes, les murs et la salle où vous vous trouvez ne bougent pas : les autres salles de la ligne glissent en les sautant. Il faut au moins une salle mobile dans la ligne ; sinon la gemme est grisée. Après un décalage, les portes se recalculent : deux portes face à face forment un passage, une porte contre un mur devient un mur.</li>
         <li><b>Impasse :</b> si plus aucune porte n'est accessible, l'expédition est perdue.</li>
       </ol>
       <div class="boutons"><button class="btn principal" data-act="close">Compris</button></div>`, "regles");
