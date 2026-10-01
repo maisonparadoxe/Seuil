@@ -534,3 +534,19 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .mm-btn { width: 46px; height: 46px; font-size: 24px; color: var(--c); background: var(--paper); border: 2px solid rgba(0, 0, 0, 0.4); border-radius: 4px; cursor: pointer; }
 .mm-btn.mm-act { color: var(--ink); font-size: 18px; }
 .mm-btn.mm-ok { background: var(--stamp-red); color: #fff; border-color: var(--stamp-red); }
+
+/* Niveaux des salles et paquets */
+.niv-tag { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; padding: 1px 5px; border: 1px solid currentColor; border-radius: 2px; vertical-align: middle; white-space: nowrap; }
+.niv-tag.niv0 { color: #6E655A; }
+.niv-tag.niv1 { color: #3F5B66; }
+.niv-tag.niv2 { color: #9A2B25; }
+.niv-tag.niv3 { color: #B98B2A; background: rgba(185, 139, 42, 0.14); font-weight: 700; }
+.pack-ico { display: flex; align-items: center; justify-content: center; font-size: 34px; background: rgba(0, 0, 0, 0.06); }
+.offre-pack { border-left: 4px solid var(--gold); }
+.pack-dos { display: flex; justify-content: center; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.pack-carte.dos { width: 54px; height: 76px; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 28px; color: var(--gold); background: #2A2620; border: 2px solid var(--gold); border-radius: 4px; }
+@keyframes revele { from { opacity: 0; transform: rotateY(90deg) scale(0.9); } to { opacity: 1; transform: none; } }
+.pack-reveal { opacity: 0; animation: revele 0.45s ease-out forwards; }
+.pack-reveal.niv3 { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(185, 139, 42, 0.8); }
+.pack-reveal.niv2 { box-shadow: 0 0 0 2px #9A2B25; }
+@media (prefers-reduced-motion: reduce) { .pack-reveal { opacity: 1; animation: none; } }

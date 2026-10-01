@@ -149,8 +149,24 @@
     { id: "fresque", nom: "Fresque des Gardiens", court: "Fresque", doors: ["L", "R"], w: 3, max: 2, kind: "bonus", fx: { fragment: 1 }, desc: "Des silhouettes en capuche gardent une porte. L'une d'elles tient une salamandre." },
     { id: "cabinet", nom: "Cabinet du serrurier", court: "Cabinet", doors: ["F"], w: 2, max: 1, kind: "bonus", fx: { fragment: 1, steps: 3 }, desc: "Un bureau encombré de pênes et de ressorts. Quelqu'un a travaillé ici." },
     { id: "lames", nom: "Salle des lames", court: "Lames", doors: ["F", "L"], mirror: true, w: 3, max: 2, kind: "trap", fx: { steps: -5 }, desc: "Des lames sortent du mur au moindre pas. Vous vous en tirez, mais pas gratuitement." },
+    { id: "tresorerie", nom: "Trésorerie des Gardiens", court: "Trésor", doors: [], w: 2, max: 1, kind: "bonus", fx: { coins: 8 }, desc: "Un coffre ouvert, des pièces d'un autre siècle. Un cul-de-sac." },
+    { id: "autel", nom: "Autel du seuil", court: "Autel", doors: ["F"], w: 2, max: 1, kind: "bonus", fx: { steps: 6, dice: 1, seals: 1 }, desc: "Une offrande y attend celui qui a su venir jusqu'ici." },
+    { id: "miroirs", nom: "Salle des miroirs", court: "Miroirs", doors: ["F", "L", "R"], mirror: true, w: 2, max: 1, kind: "bonus", fx: { steps: 4 }, desc: "Cent reflets, trois issues. L'un des reflets vous précède." },
     { id: "eboulis", nom: "Éboulement", court: "Éboulis", doors: ["F"], w: 3, max: 2, kind: "trap", fx: { steps: -3 }, desc: "La voûte a cédé. Il faut contourner les gravats." },
   ];
+  // Niveau d'une salle : 0 base · 1 courant · 2 avancé · 3 rare. Il fixe l'étage à partir duquel elle peut apparaître.
+  const NIVEAU_SALLE = {
+    galerie: 0, coude: 0, fourche: 0, te: 0,
+    croisee: 1, cellier: 1, refectoire: 1, boutique: 1, archives: 1, cristallerie: 1, cave: 1,
+    reliquaire: 2, forge: 2, sablier: 2, fresque: 2, cabinet: 2, engrenages: 2, vents: 2,
+    puits: 3, sanctuaire: 3, tresorerie: 3, autel: 3, miroirs: 3,
+  };
+  SALLES.forEach((t) => (t.niv = NIVEAU_SALLE[t.id] || 0));
+  // Poids de chaque niveau selon l'étage (0 : le niveau n'apparaît pas encore)
+  const POIDS_NIVEAU = { 1: { 0: 6, 1: 4 }, 2: { 0: 3, 1: 4, 2: 3 }, 3: { 0: 2, 1: 3, 2: 3, 3: 2 } };
+  const SYMB_NIVEAU = ["○", "◐", "●", "★"];
+  const NOM_NIVEAU = ["Base", "Courant", "Avancé", "Rare"];
+  const niveauTag = (t) => `<span class="niv-tag niv${t.niv}" title="Niveau ${t.niv} : ${NOM_NIVEAU[t.niv]}">${SYMB_NIVEAU[t.niv]} ${NOM_NIVEAU[t.niv]}</span>`;
   const SALLES_PAR_ID = {};
   SALLES.forEach((t) => (SALLES_PAR_ID[t.id] = t));
   const PLAFOND_DECK = 15;
@@ -1126,10 +1142,17 @@
   const deckPlein = () => G.deck.length >= plafondDeck();
 
   // n cartes distinctes du pool (les salles pièges n'y figurent pas). Le hasard vient du flux courant.
-  function offrir(n, forcer) {
-    const pool = SALLES.filter((t) => t.kind !== "trap" && !salleVerrouillee(t.id) && copies(t.id) < (t.max || 99) && (G.regles.gemmes || !(t.fx && t.fx.gem))).map((t) => ({ t, w: t.w * (aJoker("sourcier") && t.fx && t.fx.gem ? 2 : 1) }));
+  // opts : { niveaux: [..], kind: "bonus", theme: "mots" } pour les paquets
+  function offrir(n, forcer, opts) {
+    opts = opts || {};
+    const poids = POIDS_NIVEAU[Math.min(3, G.etage || 1)];
+    const somme = {};
+    SALLES.forEach((t) => {
+      if (t.kind !== "trap") somme[t.niv] = (somme[t.niv] || 0) + t.w;
+    });
+    const pool = SALLES.filter((t) => t.kind !== "trap" && !salleVerrouillee(t.id) && copies(t.id) < (t.max || 99) && (G.regles.gemmes || !(t.fx && t.fx.gem)) && poids[t.niv] && (!opts.niveaux || opts.niveaux.includes(t.niv)) && (!opts.kind || t.kind === opts.kind)).map((t) => ({ t, w: ((poids[t.niv] * t.w) / somme[t.niv]) * (aJoker("sourcier") && t.fx && t.fx.gem ? 2 : 1) }));
     const cartes = [];
-    const ajouter = (t) => cartes.push({ id: t.id, theme: (t.doors || []).length ? pick(THEME_IDS) : null });
+    const ajouter = (t) => cartes.push({ id: t.id, theme: (t.doors || []).length ? opts.theme || pick(THEME_IDS) : null });
     if (forcer) {
       const i = pool.findIndex((x) => x.t.id === forcer);
       if (i >= 0) {
@@ -1147,6 +1170,89 @@
       pool.splice(i, 1);
     }
     return cartes;
+  }
+
+  // ---- Paquets de cartes : on découvre les cartes et on en garde une ----
+  const PACKS = {
+    passages: { nom: "Paquet de passages", prix: 5, n: 3, desc: "3 salles de passage, sans effet." },
+    speciales: { nom: "Paquet de salles spéciales", prix: 9, n: 3, desc: "3 salles à effet." },
+    theme: { nom: "Paquet thématique", prix: 7, n: 3, desc: "3 salles de la même couleur." },
+    mystere: { nom: "Paquet mystère", prix: 14, n: 5, desc: "5 salles, dont une du plus haut niveau possible." },
+  };
+  // À appeler dans un flux de hasard (la boutique) : le contenu est fixé à l'ouverture de la boutique
+  function construirePack(id) {
+    const P = PACKS[id];
+    let cartes = [];
+    let theme = null;
+    if (id === "passages") cartes = offrir(P.n, null, { niveaux: [0] });
+    else if (id === "speciales") cartes = offrir(P.n, null, { kind: "bonus" });
+    else if (id === "theme") {
+      theme = pick(THEME_IDS);
+      cartes = offrir(P.n, null, { theme });
+    } else {
+      const haut = Math.min(3, G.etage || 1);
+      const garantie = offrir(1, null, { niveaux: [haut] });
+      cartes = garantie.concat(offrir(P.n, null).filter((c) => !garantie.some((g) => g.id === c.id))).slice(0, P.n);
+    }
+    return { id, nom: P.nom, desc: P.desc, prix: P.prix, theme, cartes };
+  }
+
+  function acheterPack(i) {
+    const B = G.boutique;
+    const it = B && B.packs && B.packs[i];
+    if (!it || G.coins < it.prix || deckPlein()) return;
+    G.coins -= it.prix;
+    G.achats += 1;
+    B.packs.splice(i, 1);
+    G.pack = { item: it, revele: false };
+    log("Paquet acheté : « " + it.nom + " » (−" + it.prix + " pièces).");
+    son("punaise");
+    modalePack();
+    render();
+  }
+  function modalePack() {
+    const K = G.pack;
+    const it = K.item;
+    if (!K.revele) {
+      afficherModale(`
+        <p class="modal-sur">${esc(it.nom)}${it.theme ? " · " + THEMES[it.theme].nom : ""}</p>
+        <h2>Un paquet scellé</h2>
+        <p class="note-deck">${it.cartes.length} cartes à découvrir. Vous en garderez une ; elle rejoindra votre deck (${G.deck.length}/${plafondDeck()}).</p>
+        <div class="pack-dos">${it.cartes.map(() => `<span class="pack-carte dos">?</span>`).join("")}</div>
+        <div class="boutons"><button class="btn principal" data-act="pack-reveler">Ouvrir le paquet</button></div>`, "boutique-modal sans-echap");
+      return;
+    }
+    const cartes = it.cartes
+      .map((card, i) => {
+        const t = SALLES_PAR_ID[card.id];
+        const sorties = (t.doors || []).length;
+        return `<button class="carte-salle ${t.kind} pack-reveal niv${t.niv}" style="animation-delay:${i * 0.35}s" data-act="pack-choisir" data-i="${i}">
+          <span class="mini">${apercuCarte(card)}</span>
+          <span class="cs-nom">${esc(t.nom)} ${niveauTag(t)}</span>
+          <span class="cs-desc">${esc(t.desc)}</span>
+          <span class="cs-fx">${esc(effetTexte(t.fx))}</span>
+          <span class="cs-portes">${sorties === 0 ? "Cul-de-sac" : sorties + " sortie" + (sorties > 1 ? "s" : "")}</span>
+          ${card.theme ? `<span class="cs-theme theme-tag" style="--t:${THEMES[card.theme].couleur}">${THEMES[card.theme].glyphe} ${THEMES[card.theme].nom}</span>` : ""}
+        </button>`;
+      })
+      .join("");
+    afficherModale(`
+      <p class="modal-sur">${esc(it.nom)}</p>
+      <h2>Gardez une carte</h2>
+      <p class="note-deck">La carte choisie rejoint la défausse. Les autres sont perdues.</p>
+      <div class="tirage pack-liste">${cartes}</div>
+      <div class="boutons"><button class="btn lien" data-act="pack-passer">Ne rien garder</button></div>`, "boutique-modal recompense-modal sans-echap");
+  }
+  function choisirDansPack(i) {
+    const K = G.pack;
+    const card = K && K.revele && K.item.cartes[i];
+    if (!card) return;
+    ajouterCarte(card);
+    log("Paquet : la carte « " + SALLES_PAR_ID[card.id].nom + " » rejoint votre deck.");
+    G.pack = null;
+    son("tampon");
+    modaleBoutique();
+    render();
   }
 
   // Une porte de niveau 2 ou 3 peut offrir une carte nouvelle ; la Boutique est proposée d'office la première fois.
@@ -1267,7 +1373,8 @@
   function ouvrirBoutique(type) {
     G.boutique = avecFlux("boutique:" + G.etage + ":" + G.rooms, () => ({
       type,
-      stock: offrir(type === "passage" ? 2 : 4).map((card) => ({ card, prix: prixCarte(SALLES_PAR_ID[card.id]) })),
+      stock: offrir(type === "passage" ? 1 : 2).map((card) => ({ card, prix: prixCarte(SALLES_PAR_ID[card.id]) })),
+      packs: shuffle(Object.keys(PACKS)).slice(0, type === "passage" ? 1 : 2).map((id) => construirePack(id)),
       jokers: offrirJokers(2).map((id) => ({ id, prix: prixJoker(JOKERS_PAR_ID[id]) })),
     }));
     log(type === "carte" ? "Vous entrez dans la Boutique." : type === "etage" ? "Un marchand des Gardiens vous attend au pied de l'escalier." : "Un marchand des Gardiens vous attendait dans cette salle.");
@@ -1426,6 +1533,7 @@
     if (fx.dice) { G.dice += fx.dice * mult; morceaux.push("+" + fx.dice * mult + " dé" + (fx.dice * mult > 1 ? "s" : "")); }
     if (fx.seals) { G.seals += fx.seals * mult; morceaux.push("+" + fx.seals * mult + " sceau" + (fx.seals * mult > 1 ? "x" : "")); }
     if (fx.time) { G.timeBonus += fx.time; morceaux.push("+" + fx.time + " s par énigme"); }
+    if (fx.coins) { G.coins += fx.coins; morceaux.push("+" + fx.coins + " pièces"); }
     if (fx.gem) {
       G.gems.push({ axe: fx.gem.axe, max: fx.gem.max });
       morceaux.push("une gemme " + (fx.gem.axe === "H" ? "↔" : "↕") + (fx.gem.max === 2 ? " rare" : ""));
@@ -1733,6 +1841,7 @@
     if (fx.dice) parts.push("🎲");
     if (fx.seals) parts.push("🗝");
     if (fx.time) parts.push("⏳");
+    if (fx.coins) parts.push("🪙");
     if (fx.fragment) parts.push("📜");
     if (fx.shop) parts.push("💰");
     if (fx.gem) parts.push((fx.gem.max === 2 ? "💎" : "") + (fx.gem.axe === "H" ? "↔" : "↕"));
@@ -1807,6 +1916,7 @@
     if (fx.dice) p.push("+" + fx.dice + " dé");
     if (fx.seals) p.push("+" + fx.seals + " sceau");
     if (fx.time) p.push("+" + fx.time + " s par énigme");
+    if (fx.coins) p.push("+" + fx.coins + " pièces");
     if (fx.fragment) p.push("un fragment du carnet de Valcourt");
     if (fx.shop) p.push("une boutique : achat de cartes, retrait d'une carte");
     if (fx.gem) p.push("une gemme " + (fx.gem.axe === "H" ? "↔ (décale une ligne" : "↕ (décale une colonne") + (fx.gem.max === 2 ? " de 1 ou 2 crans, rare)" : " d'un cran)"));
@@ -2393,7 +2503,7 @@
         return `<button class="carte-salle ${cd.tpl.kind}${sel ? " sel" : ""}${cd.interdit ? " interdit" : ""}" data-act="apercu" data-i="${i}" aria-pressed="${sel}">
           ${cd.interdit ? `<span class="cs-fx">🚫 Interdit ici</span>` : ""}
           <span class="mini">${salleSVG(cd.tpl, cotes, { entree: opp(D.d), theme: cd.theme })}</span>
-          <span class="cs-nom">${esc(cd.tpl.nom)}${cd.card.temp ? ` <span class="temp-tag">🗝 temporaire</span>` : ""}</span>
+          <span class="cs-nom">${esc(cd.tpl.nom)} ${niveauTag(cd.tpl)}${cd.card.temp ? ` <span class="temp-tag">🗝 temporaire</span>` : ""}</span>
           <span class="cs-desc">${esc(cd.tpl.desc)}</span>
           <span class="cs-fx">${esc(effetTexte(cd.tpl.fx))}</span>
           <span class="cs-portes">${cd.sorties === 0 ? "Cul-de-sac" : cd.sorties + " sortie" + (cd.sorties > 1 ? "s" : "")}</span>
@@ -2546,7 +2656,7 @@
         const sorties = (t.doors || []).length;
         return `<button class="carte-salle ${t.kind}" data-act="recomp" data-i="${i}"${plein ? " disabled" : ""}>
           <span class="mini">${apercuCarte(card)}</span>
-          <span class="cs-nom">${esc(t.nom)}</span>
+          <span class="cs-nom">${esc(t.nom)} ${niveauTag(t)}</span>
           <span class="cs-desc">${esc(t.desc)}</span>
           <span class="cs-fx">${esc(effetTexte(t.fx))}</span>
           <span class="cs-portes">${sorties === 0 ? "Cul-de-sac" : sorties + " sortie" + (sorties > 1 ? "s" : "")}</span>
@@ -2610,7 +2720,7 @@
             const raison = plein ? "Deck plein" : G.coins < it.prix ? "Trop cher" : "";
             return `<li class="offre">
               <span class="mini">${apercuCarte(it.card)}</span>
-              <span class="offre-txt"><span class="cs-nom">${esc(t.nom)}</span> ${themeTag(it.card)}<br>
+              <span class="offre-txt"><span class="cs-nom">${esc(t.nom)}</span> ${niveauTag(t)} ${themeTag(it.card)}<br>
                 <span class="cs-desc">${esc(t.desc)}</span><br>
                 <span class="cs-fx">${esc(effetTexte(t.fx))}</span> <span class="cs-portes">${sorties === 0 ? "cul-de-sac" : sorties + " sortie" + (sorties > 1 ? "s" : "")}</span></span>
               <button class="btn achat" data-act="acheter" data-i="${i}"${raison ? " disabled" : ""}>${raison || "Acheter"}<br><b>${it.prix} 🪙</b></button>
@@ -2618,6 +2728,16 @@
           })
           .join("")
       : `<li class="vide">Tout est vendu.</li>`;
+    const paquets = (B.packs || [])
+      .map((it, i) => {
+        const raison = plein ? "Deck plein" : G.coins < it.prix ? "Trop cher" : "";
+        return `<li class="offre offre-pack">
+          <span class="mini pack-ico">🎴</span>
+          <span class="offre-txt"><span class="cs-nom">${esc(it.nom)}</span>${it.theme ? ` <span class="theme-tag" style="--t:${THEMES[it.theme].couleur}">${THEMES[it.theme].glyphe} ${THEMES[it.theme].nom}</span>` : ""}<br><span class="cs-desc">${esc(it.desc)} Vous en gardez une.</span></span>
+          <button class="btn achat" data-act="acheter-pack" data-i="${i}"${raison ? " disabled" : ""}>${raison || "Ouvrir"}<br><b>${it.prix} 🪙</b></button>
+        </li>`;
+      })
+      .join("");
     const prix = prixRetrait();
     const retrait = G.deck
       .slice()
@@ -2632,7 +2752,7 @@
       <p class="modal-sur">${B.type === "carte" ? "Boutique" : B.type === "etage" ? "Entre deux étages" : "Marchand de passage"}</p>
       <h2>Vos pièces : ${G.coins} 🪙</h2>
       <p class="note-deck">Deck : ${G.deck.length}/${plafondDeck()}${plein ? " (plein)" : ""}. Une carte achetée rejoint la défausse.</p>
-      <ul class="boutique-liste">${stock}</ul>
+      <ul class="boutique-liste">${paquets}${stock}</ul>
       ${jokersBoutiqueHTML()}
       <details class="retrait">
         <summary>Retirer une carte du deck (${prix} 🪙, puis +2 à chaque retrait)</summary>
@@ -2704,6 +2824,7 @@
     li.push("<b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.");
     li.push("<b>Vos salles sont des cartes.</b> Vous partez avec un deck de 8 cartes. À chaque porte, vous tirez 3 cartes de la pioche et vous en posez une derrière la porte, avec ses propres portes. Les trois cartes vont ensuite à la défausse ; quand la pioche est presque vide, on y remélange la défausse. Touchez « Deck » pour voir vos cartes.");
     li.push("<b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.");
+    li.push("<b>Niveaux des salles et paquets.</b> Chaque salle a un niveau : ○ base, ◐ courant, ● avancé, ★ rare. Au 1er étage, on trouve surtout des salles de base ; les niveaux plus forts n'apparaissent qu'en descendant. En boutique, des paquets de cartes se découvrent carte par carte : on en garde une et les autres sont perdues.");
     li.push("<b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.");
     li.push("<b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.");
     if (R2.jokers) li.push("<b>Jokers.</b> Trois emplacements au départ (jusqu'à 5). Un joker est une règle passive : temps en plus, pièces en plus, tirage élargi" + (R2.gemmes ? ", gemmes plus puissantes" : "") + "... On les achète en boutique et on peut les revendre à moitié prix. Les jokers « malédiction » sont très forts, mais ont un prix. Une bulle et un éclat signalent quand l'un d'eux agit.");
@@ -2850,6 +2971,25 @@
         break;
       case "acheter":
         acheter(parseInt(el.getAttribute("data-i"), 10));
+        break;
+      case "acheter-pack":
+        acheterPack(parseInt(el.getAttribute("data-i"), 10));
+        break;
+      case "pack-reveler":
+        if (G && G.pack) {
+          G.pack.revele = true;
+          son("page");
+          modalePack();
+        }
+        break;
+      case "pack-choisir":
+        choisirDansPack(parseInt(el.getAttribute("data-i"), 10));
+        break;
+      case "pack-passer":
+        if (G && G.pack) {
+          G.pack = null;
+          modaleBoutique();
+        }
         break;
       case "retirer":
         retirerAchat(parseInt(el.getAttribute("data-uid"), 10));
@@ -3039,5 +3179,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

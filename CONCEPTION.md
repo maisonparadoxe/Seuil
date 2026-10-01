@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Niveaux des salles et paquets en boutique, faits** (voir plus bas). Reste : le paquet de départ (palier 3 et plus), à décider après essai.
 - **Code (Mastermind) à la dernière porte du 2e étage, fait** (voir plus bas).
 - **Enquête (Murdle) à la dernière porte du dernier étage, faite** (voir plus bas).
 - **Mot caché (Wordle) à la dernière porte, fait** (voir plus bas).
@@ -341,6 +342,17 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 - **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
+
+### Niveaux des salles et paquets en boutique (fait)
+
+- **Un seul axe : le niveau 0 à 3** (○ base, ◐ courant, ● avancé, ★ rare), affiché sur les cartes (boutique, récompense, tirage, paquets). La rareté en découle.
+- **Répartition.** 0 : Galerie, Coude, Fourche, Salle en T. 1 : Croisée, Cellier, Réfectoire, Boutique, Archives, Cristallerie, Cave aux cristaux. 2 : Reliquaire, Forge froide, Salle du sablier, Fresque, Cabinet du serrurier, Salle des engrenages, Colonne des vents. 3 : Puits aux salamandres, Sanctuaire et trois nouvelles cartes : Trésorerie des Gardiens (+8 pièces), Autel du seuil (+6 pas, +1 dé, +1 sceau), Salle des miroirs (+4 pas, trois sorties).
+- **Les niveaux suivent l'étage.** Boutique, paquets et récompenses : étage 1 niveaux 0-1 (poids 6/4), étage 2 niveaux 0-2 (3/4/3), étage 3 tous (2/3/3/2). Le poids d'un niveau est réparti entre ses cartes selon leur poids propre. Les exploits restent indépendants : une carte verrouillée n'apparaît pas, quel que soit son niveau. Le deck de départ ne change pas.
+- **Paquets.** La boutique propose 2 cartes à l'unité et 2 paquets (1 et 1 chez le marchand de passage). Paquet de passages (5 pièces, 3 cartes de niveau 0), de salles spéciales (9, 3 salles à effet), thématique (7, 3 cartes de la même couleur), mystère (14, 5 cartes dont une du plus haut niveau possible). On découvre les cartes une à une, on en garde une (qui rejoint la défausse) ou aucune. Achat refusé si le deck est plein. Le contenu est fixé à l'ouverture de la boutique, donc par la graine. Un paquet acheté compte pour l'exploit « acheter 3 cartes ».
+- **À régler en jouant.** Prix, poids des niveaux, force des niveaux 2 et 3, poids des nouvelles cartes.
+- **Paquet de départ** (palier 3 et plus) : pas encore fait, à décider après essai.
+
+Vérifié par des tests automatiques : niveaux des 23 salles, niveaux tirés selon l'étage (700 offres par étage), effets des trois nouvelles cartes, contenu et déterminisme des paquets, achat, ouverture, choix, « ne rien garder », deck plein ; et toutes les anciennes suites (adaptées à la boutique de 2 cartes et 2 paquets).
 
 ### Le code : un Mastermind à la dernière porte du 2ᵉ étage (fait)
 
