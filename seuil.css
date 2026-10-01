@@ -499,3 +499,16 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .libre-k .chip.sel { border-color: var(--stamp-red); box-shadow: 0 0 0 2px var(--stamp-red); }
 .libre-legende { font-size: 12px; color: var(--ink-soft); margin-left: 4px; }
 .regles-libre { margin: 6px 0; padding-left: 18px; font-size: 14px; }
+
+/* Mot caché (Wordle de la dernière porte) */
+.wordle { display: grid; gap: 5px; margin: 10px auto; width: min(100%, 260px); }
+.wl { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.wc { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(0, 0, 0, 0.3); font-family: var(--font-mono); font-size: 22px; font-weight: 700; text-transform: uppercase; background: rgba(255, 255, 255, 0.25); color: var(--ink); }
+.wc.s { border-color: var(--ink); }
+.wc.v, .wk.v { background: #4C7A45; border-color: #4C7A45; color: #fff; }
+.wc.j, .wk.j { background: #B98B2A; border-color: #B98B2A; color: #fff; }
+.wc.x, .wk.x { background: #6E655A; border-color: #6E655A; color: #fff; }
+.wkb { display: grid; gap: 5px; margin-top: 8px; }
+.wk-row { display: flex; justify-content: center; gap: 4px; }
+.wk { flex: 1 1 0; max-width: 34px; min-width: 0; height: 42px; padding: 0; font-family: var(--font-mono); font-size: 15px; text-transform: uppercase; background: var(--paper); border: 1px solid rgba(0, 0, 0, 0.35); border-radius: 3px; color: var(--ink); cursor: pointer; }
+.wk-big { flex: 1.6 1 0; max-width: 52px; }

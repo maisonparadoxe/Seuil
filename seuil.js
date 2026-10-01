@@ -625,6 +625,35 @@
   }
 
   const TEMPS_BASE = { 1: 40, 2: 35, 3: 30 };
+  const TEMPS_WORDLE = 120;
+  const ESSAIS_WORDLE = 6;
+  const PENALITE_WORDLE = 6;
+
+  // ---- Le mot caché : un Wordle à la dernière porte de chaque étage ----
+  const MOTS5 = "abris acier agent aigle aller amour ancre angle arbre armee arret astre atlas avion bague balai balle banal barre bijou blanc blond bocal boire boite bonne botte boule bruit brule brume cabri cadre calme canal carte casse cause cedre chant chaos chaud chene chiot chose cible clair clous coeur colle conte copie corde corps coude coupe cours crane creux crime croix cruel cuire dague danse debut delai demon dense depot devin dieux doigt doute douze drame droit eclat ecole ecran effet email encre ennui envie epais epine epoux essai etage etang exact fable facon faire fanal farce faute femme ferme fiole fleur foire folie force forge forme fosse foule franc frele froid fruit fugue fumee furie gagne galet garde geant genou glace globe gorge grace grand grave gruau guide haine haute herbe heros heure hibou hotel huile ideal image jaune jeton jeune jouer juger jupon juste lacet laine lampe large larme lecon legal lever libre lieux ligne linge livre local loger lourd lueur lutte magie maire malin masse matin meche melee messe metal miche mirer mixte moine monde morne motif mulet munir muret neige niche noble noeud noire nuage nuire obeir objet ombre opale orage ordre outil ouvre pacte paire panne parer passe patte pause peine perle phare piege piste place plage plomb pluie poele poing point poire porte poser poule pouls prier prise puits quete queue radis rampe rayon rebut regle reine reste rever roche ronde rouge route ruban ruine ruser sable sacre saine salle salut sauce saule savon scene selle sente serre seuil signe sirop soeur sonde sorte souci spire stage style suite sujet table tache taire talon tarte tasse temps tente terme terre tigre tisse titre toile tombe tonne torse trace trahi trame trois trone tuile union usage usine vague valse vaste veine velin vendu verre vigne villa vivre voeux voile voler vouer zebre".split(" ");
+  function makeWordle(level) {
+    return { kind: "wordle", label: "Mot caché", answer: pick(MOTS5), guesses: [], saisie: "", level, theme: "mots" };
+  }
+  // v : bien placée, j : dans le mot mais ailleurs, x : absente (les doublons sont comptés une seule fois par lettre du mot)
+  function noterMot(mot, reponse) {
+    const res = Array(5).fill("x");
+    const reste = {};
+    for (let i = 0; i < 5; i++) {
+      if (mot[i] === reponse[i]) res[i] = "v";
+      else reste[reponse[i]] = (reste[reponse[i]] || 0) + 1;
+    }
+    for (let i = 0; i < 5; i++) {
+      if (res[i] !== "v" && reste[mot[i]] > 0) {
+        res[i] = "j";
+        reste[mot[i]]--;
+      }
+    }
+    return res;
+  }
+  const porteFinale = (P) => {
+    const cible = G.grid[P.r + DIRS[P.d].dr][P.c + DIRS[P.d].dc];
+    return !!(cible && cible.goal);
+  };
 
   // Les quatre thèmes. La couleur d'une salle est le thème des énigmes
   // qui gardent ses portes de sortie.
@@ -1189,6 +1218,7 @@
     }
     const grippee = G.envs.some((x) => x.id === "serrure_grippee");
     G.pending = { r, c, d, level: grippee ? Math.min(3, e.level + 1) : e.level, theme: e.theme, grippee };
+    G.pending.finale = porteFinale(G.pending);
     modalePorte();
   }
 
@@ -1462,11 +1492,11 @@
     const P = G.pending;
     if (P.grippee) consommerGrippee();
     const porte = G.grid[P.r][P.c].door[P.d];
-    const p = avecFlux("enigme:" + G.etage + ":" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => makePuzzle(P.level, P.theme));
+    const p = avecFlux("enigme:" + G.etage + ":" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => (P.finale ? makeWordle(P.level) : makePuzzle(P.level, P.theme)));
     porte.essais = (porte.essais || 0) + 1; // une porte retentée pose une autre énigme
     if (aJoker("loupe")) declencher("loupe", "+5 secondes", true);
     if (aJoker("sablier2")) declencher("sablier2", "+10 secondes", true);
-    const total = tempsPorte(P.level);
+    const total = P.finale ? TEMPS_WORDLE + bonusTemps() : tempsPorte(P.level);
     pz = { puzzle: p, restant: total, total, fini: false };
     modaleEnigme();
     arreterChrono();
@@ -1521,7 +1551,11 @@
       son("deblocage");
     } else {
       G.failed += 1;
-      if (aJoker("souffle") && !G.souffle) {
+      if (p.kind === "wordle") {
+        G.steps = Math.max(0, G.steps - PENALITE_WORDLE);
+        pz.penalite = PENALITE_WORDLE;
+        log("Mot caché raté (" + p.answer.toUpperCase() + ") : −" + PENALITE_WORDLE + " pas. La porte reste verrouillée.");
+      } else if (aJoker("souffle") && !G.souffle) {
         G.souffle = true;
         pz.sauvee = true; // la porte reste verrouillée : on pourra la retenter
         declencher("souffle", "la porte n'est pas condamnée");
@@ -2035,10 +2069,10 @@
     const T = THEMES[P.theme];
     afficherModale(`
       <p class="modal-sur">Porte du ${d.nom} ${d.fleche}</p>
-      <h2>Une serrure sans clé</h2>
+      <h2>${P.finale ? "La dernière serrure" : "Une serrure sans clé"}</h2>
       <p class="niveau"><span class="theme-tag" style="--t:${T.couleur}">${T.glyphe} ${T.nom}</span> Difficulté <span class="pips">${pips}</span></p>
       ${P.grippee ? `<p class="tirage-env">🔒 Serrure grippée : cette porte est plus dure qu'elle ne devrait.</p>` : ""}
-      <p>Une seule tentative, ${temps} secondes. Si vous échouez, la porte est condamnée pour toute la partie.${aJoker("souffle") && !G.souffle ? " 💨 Second souffle : ce premier échec ne condamnera pas la porte." : ""}</p>
+      ${P.finale ? `<p>Dernière porte de l'étage : un <b>mot caché de 5 lettres</b>, ${ESSAIS_WORDLE} essais, ${TEMPS_WORDLE + bonusTemps()} secondes. Vert : bien placée. Jaune : dans le mot, ailleurs. Gris : absente. Un échec coûte ${PENALITE_WORDLE} pas, la porte reste fermée et vous pourrez retenter avec un autre mot.</p>` : `<p>Une seule tentative, ${temps} secondes. Si vous échouez, la porte est condamnée pour toute la partie.${aJoker("souffle") && !G.souffle ? " 💨 Second souffle : ce premier échec ne condamnera pas la porte." : ""}</p>`}
       <div class="boutons">
         <button class="btn principal" data-act="try">Tenter l'énigme</button>
         ${G.seals > 0 ? `<button class="btn" data-act="seal">Utiliser un sceau (${G.seals})</button>` : ""}
@@ -2056,7 +2090,65 @@
     if (t) t.textContent = Math.max(0, Math.ceil(pz.restant)) + " s";
   }
 
+  function modaleWordle() {
+    const p = pz.puzzle;
+    const lignes = [];
+    for (let i = 0; i < ESSAIS_WORDLE; i++) {
+      const g = p.guesses[i];
+      let cases = "";
+      for (let j = 0; j < 5; j++) {
+        let ch = "", cl = "";
+        if (g) {
+          ch = g.mot[j];
+          cl = g.etats[j];
+        } else if (i === p.guesses.length) {
+          ch = p.saisie[j] || "";
+          cl = ch ? "s" : "";
+        }
+        cases += `<span class="wc ${cl}">${ch}</span>`;
+      }
+      lignes.push(`<div class="wl">${cases}</div>`);
+    }
+    const meilleur = {};
+    const rang = { x: 1, j: 2, v: 3 };
+    p.guesses.forEach((g) => [...g.mot].forEach((ch, j) => { if (!meilleur[ch] || rang[g.etats[j]] > rang[meilleur[ch]]) meilleur[ch] = g.etats[j]; }));
+    const clavier = ["azertyuiop", "qsdfghjklm", "wxcvbn"]
+      .map((r, i) => `<div class="wk-row">${i === 2 ? `<button class="wk wk-big" data-act="wk-ok" aria-label="Valider">⏎</button>` : ""}${[...r].map((ch) => `<button class="wk ${meilleur[ch] || ""}" data-act="wk" data-k="${ch}">${ch}</button>`).join("")}${i === 2 ? `<button class="wk wk-big" data-act="wk-del" aria-label="Effacer">⌫</button>` : ""}</div>`)
+      .join("");
+    afficherModale(`
+      <p class="modal-sur"><span class="theme-tag" style="--t:${THEMES.mots.couleur}">${THEMES.mots.glyphe} ${THEMES.mots.nom}</span> ${esc(p.label)} · essai ${Math.min(p.guesses.length + 1, ESSAIS_WORDLE)}/${ESSAIS_WORDLE}</p>
+      <div class="chrono"><span id="chrono-barre"></span><span id="chrono-texte" class="chrono-texte"></span></div>
+      <div class="wordle" aria-label="Grille du mot caché">${lignes.join("")}</div>
+      <div class="wkb">${clavier}</div>`, "enigme wordle sans-echap");
+    majChrono();
+  }
+
+  function saisirLettre(l) {
+    const p = pz && !pz.fini && pz.puzzle.kind === "wordle" ? pz.puzzle : null;
+    if (!p || p.saisie.length >= 5) return;
+    p.saisie += l;
+    modaleWordle();
+  }
+  function effacerLettre() {
+    const p = pz && !pz.fini && pz.puzzle.kind === "wordle" ? pz.puzzle : null;
+    if (!p || !p.saisie.length) return;
+    p.saisie = p.saisie.slice(0, -1);
+    modaleWordle();
+  }
+  function validerMot() {
+    const p = pz && !pz.fini && pz.puzzle.kind === "wordle" ? pz.puzzle : null;
+    if (!p) return;
+    if (p.saisie.length < 5) return toast("Il faut 5 lettres");
+    const mot = p.saisie;
+    p.guesses.push({ mot, etats: noterMot(mot, p.answer) });
+    p.saisie = "";
+    if (mot === p.answer) return resoudre(true, "Le mot cède.");
+    if (p.guesses.length >= ESSAIS_WORDLE) return resoudre(false, "Plus d'essais.");
+    modaleWordle();
+  }
+
   function modaleEnigme() {
+    if (pz.puzzle.kind === "wordle") return modaleWordle();
     const p = pz.puzzle;
     let corps;
     const grand = p.grand ? `<p class="enonce suite">${esc(p.grand)}</p>` : "";
@@ -2091,7 +2183,7 @@
       <p class="modal-sur">${ok ? "Réussi" : "Raté"}</p>
       <h2 class="${ok ? "ok" : "ko"}">${esc(message)}</h2>
       ${gain}
-      ${ok ? "" : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p><p>${pz.sauvee ? "💨 <b>Second souffle</b> : la porte n'est pas condamnée. Vous pourrez la retenter, avec une autre énigme." : "La porte est condamnée pour cette partie."}</p>`}
+      ${ok ? "" : p.kind === "wordle" ? `<p>Le mot était : <b>${esc(bonne.toUpperCase())}</b>.</p><p>−${pz.penalite} pas. La porte reste verrouillée : vous pourrez retenter, avec un autre mot.</p>` : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p><p>${pz.sauvee ? "💨 <b>Second souffle</b> : la porte n'est pas condamnée. Vous pourrez la retenter, avec une autre énigme." : "La porte est condamnée pour cette partie."}</p>`}
       <div class="boutons"><button class="btn principal" data-act="after">${ok ? suite : "Continuer"}</button></div>`, (ok ? "reussi" : "rate") + " sans-echap");
     const b = document.querySelector('[data-act="after"]');
     if (b) b.focus();
@@ -2413,6 +2505,7 @@
     if (R2.murs) li.push("<b>Murs et salles fixes.</b> Une case en pierre est un mur : rien ne peut y être posé. Une salle marquée d'une punaise 📌 (boutique, puits...) est posée d'avance et ne bouge jamais" + (R2.gemmes ? ", même quand une gemme décale sa ligne : les autres salles glissent en la sautant." : "."));
     li.push("<b>Chaque pas coûte 1.</b> Traverser une porte, même pour revenir en arrière, consomme un pas. À zéro, l'expédition s'arrête.");
     li.push("<b>Les portes sont scellées.</b> Une porte verrouillée pose une énigme chronométrée : calcul, suite logique, orthographe. Trois niveaux de difficulté, de plus en plus durs en montant.");
+    li.push("<b>La dernière porte.</b> La porte qui mène à la Chambre est gardée par un <b>mot caché</b> de 5 lettres, façon Wordle : 6 essais, vert si la lettre est bien placée, jaune si elle est ailleurs dans le mot, gris si elle n'y est pas. Un échec coûte 6 pas mais ne condamne pas la porte : vous pouvez retenter avec un autre mot.");
     li.push("<b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.");
     li.push("<b>Vos salles sont des cartes.</b> Vous partez avec un deck de 8 cartes. À chaque porte, vous tirez 3 cartes de la pioche et vous en posez une derrière la porte, avec ses propres portes. Les trois cartes vont ensuite à la défausse ; quand la pioche est presque vide, on y remélange la défausse. Touchez « Deck » pour voir vos cartes.");
     li.push("<b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.");
@@ -2623,6 +2716,15 @@
       case "mcq":
         repondre(el.getAttribute("data-v"));
         break;
+      case "wk":
+        saisirLettre(el.getAttribute("data-k"));
+        break;
+      case "wk-del":
+        effacerLettre();
+        break;
+      case "wk-ok":
+        validerMot();
+        break;
       case "after":
         if (pz && pz.fini) {
           const ok = G.grid[G.pending.r][G.pending.c].door[G.pending.d].status === "open";
@@ -2690,6 +2792,13 @@
       if (ev.key === "Escape" && !enCours && !(G && G.draft) && !(G && G.over) && modaleLibre()) {
         if (G) G.pending = null;
         fermerModale();
+      } else if (pz && !pz.fini && pz.puzzle.kind === "wordle") {
+        if (/^[a-zA-Z]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey) saisirLettre(ev.key.toLowerCase());
+        else if (ev.key === "Backspace") effacerLettre();
+        else if (ev.key === "Enter") {
+          ev.preventDefault();
+          validerMot();
+        }
       } else if (pz && !pz.fini && pz.puzzle.kind === "mcq" && /^[1-4]$/.test(ev.key) && parseInt(ev.key, 10) <= pz.puzzle.options.length) repondre(pz.puzzle.options[parseInt(ev.key, 10) - 1]);
       else if (G && G.draft && /^[1-4]$/.test(ev.key)) apercu(parseInt(ev.key, 10) - 1);
       else if (G && G.draft && ev.key === "Enter" && G.draft.sel !== null) choisir(G.draft.sel);
@@ -2713,5 +2822,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

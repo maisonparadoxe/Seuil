@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Mot caché (Wordle) à la dernière porte, fait** (voir plus bas).
 - **Étape 7c : mode libre, faite** (voir plus bas). L'étape 7 est terminée.
 - **Étape 7b : joker fétiche, faite** (voir plus bas).
 - **Étape 7a : exploits et déblocages, faite** (voir plus bas). 
@@ -328,6 +329,16 @@ Vérifié par des tests automatiques : choix à la victoire, sauvegarde, présen
 - **Défi du jour.** Inchangé : le jeu complet, même partie pour tout le monde.
 
 Vérifié par des tests automatiques : verrouillage tant que tout n'est pas débloqué, ordre (permutation, stable, varié), k = 0 à 4 avec chaque règle éteinte réellement absente, déterminisme, victoire sans déblocage, rejouer, défi du jour intact ; et toutes les anciennes suites.
+
+### Le mot caché : un Wordle à la dernière porte (fait)
+
+- **Où.** La porte qui mène à la Chambre de chaque étage pose un mot caché au lieu d'une énigme ordinaire (thème Mots). Les autres portes sont inchangées ; le sceau ouvre toujours la porte sans énigme.
+- **Règles.** Mot de 5 lettres, 6 essais, 120 secondes (plus les bonus de temps). Vert : bien placée ; jaune : dans le mot, ailleurs ; gris : absente (doublons comptés une fois par lettre du mot). Clavier à l'écran (AZERTY) et clavier physique. Les 5 lettres saisies ne sont pas vérifiées dans un dictionnaire.
+- **Mots.** 307 mots courants sans accents, tirés par la graine (même graine, même mot).
+- **Échec.** Six essais ratés ou le temps écoulé : −6 pas, le mot est révélé, la porte reste verrouillée (pas de condamnation) et on peut retenter avec un autre mot. Si les pas tombent à zéro, la partie s'arrête.
+- **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
+
+Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
 
 ## 6. Risques à surveiller
 
