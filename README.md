@@ -11,7 +11,7 @@ Ouvrez `index.html` dans un navigateur (double-clic), sans serveur. Sans interne
 ## Fichiers
 
 - `index.html`, `seuil.css`, `seuil.js` : le jeu, sans dépendance
-- `img/`, `audio/` : images et sons (un fichier absent est ignoré)
+- `img/`, `audio/` : images et sons (un fichier absent est ignoré ; la liste des sons à fournir est dans `audio/LISEZMOI.md`)
 
 Issu de l'univers du Bureau des affaires occultes, mais dans un projet indépendant.
 

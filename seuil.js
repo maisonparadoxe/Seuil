@@ -104,14 +104,43 @@
     muet = localStorage.getItem("seuil-muet") === "1";
   } catch (e) {}
   const sonsCache = {};
+  // Sons demandés par le jeu. Valeur : le son existant joué à la place tant que le fichier n'est pas fourni (null : silence).
+  const SONS = {
+    // existants
+    clic: null, page: null, "page-journal": null, tampon: null, punaise: null, rature: null, deblocage: null, "crayon-note": null, "carte-depliee": null,
+    // à fournir (voir audio/LISEZMOI.md)
+    "paquet-dechire": "page",
+    "carte-retournee": "page",
+    "carte-rare": "carte-depliee",
+    "enigme-ok": "deblocage",
+    "enigme-ko": "rature",
+    tic: null,
+    piece: null,
+    "case-bonus": "crayon-note",
+    "case-interdit": "rature",
+    "case-malus": "rature",
+    "pose-salle": null,
+    "etage-fin": "tampon",
+    victoire: "tampon",
+    defaite: "rature",
+    exploit: "tampon",
+  };
+  const sonsManquants = new Set(); // fichiers demandés mais introuvables
   function son(nom) {
     if (muet) return;
     try {
       let a = sonsCache[nom];
-      if (a === null) return;
+      if (a === null) {
+        if (SONS[nom]) son(SONS[nom]);
+        return;
+      }
       if (!a) {
         a = new Audio("audio/" + nom + ".mp3");
-        a.addEventListener("error", () => (sonsCache[nom] = null));
+        a.addEventListener("error", () => {
+          sonsCache[nom] = null;
+          sonsManquants.add(nom);
+          if (SONS[nom]) son(SONS[nom]);
+        });
         sonsCache[nom] = a;
       }
       a.currentTime = 0;
@@ -384,6 +413,7 @@
       x.faits[e.id] = true;
       sauverExploits(x);
       G.nouveauxExploits.push(e.id);
+      son("exploit");
       log("🏆 Exploit : " + e.nom + ". Débloque " + nomRecompense(e.cle) + ".");
       toast("🏆 Exploit : " + e.nom + " — " + nomRecompense(e.cle) + " débloqué");
     });
@@ -1475,7 +1505,7 @@
       default:
         break; // les interdictions ont déjà servi au moment du choix de la salle
     }
-    son(ENVIRONNEMENTS[sp.id].cat === "malus" ? "rature" : "crayon-note");
+    son("case-" + ENVIRONNEMENTS[sp.id].cat);
   }
 
   function deplacer(d) {
@@ -1562,6 +1592,7 @@
     const D = G.draft;
     const cand = D.cands[i];
     if (cand.interdit) return interditIci(cand);
+    son("pose-salle");
     G.envs.forEach((e) => (e.posee = true)); // la prochaine salle est posée : ces effets s'éteindront après le pas qui y entre
     G.grid[D.tr][D.tc] = { tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme, card: cand.card };
     defausserMain(D.cands); // les trois cartes tirées vont à la défausse
@@ -1652,7 +1683,7 @@
   function finEtage() {
     log("Étage " + G.etage + " terminé : la Chambre est atteinte avec " + G.steps + " pas restants.");
     controler("etage");
-    son("tampon");
+    son("etage-fin");
     fermerModale();
     render();
     afficherModale(`
@@ -1692,9 +1723,9 @@
         }
         sauverPaliers(P);
       }
-      son("tampon");
+      son("victoire");
     } else {
-      son("rature");
+      son("defaite");
     }
     saveStats(s);
     render();
@@ -1728,6 +1759,11 @@
       if (!pz || pz.fini) return arreterChrono();
       pz.restant -= 0.1;
       majChrono();
+      const sec = Math.ceil(pz.restant);
+      if (sec <= 10 && sec > 0 && sec !== pz.dernierTic) {
+        pz.dernierTic = sec;
+        son("tic");
+      }
       if (pz.restant <= 0) resoudre(false, "Le temps est écoulé.");
     }, 100);
   }
@@ -1772,7 +1808,8 @@
       G.coins += pz.gain;
       P.recompense = calculerRecompense(P);
       log("Énigme résolue (" + p.label.toLowerCase() + ")" + (pz.gain ? " : +" + pz.gain + " pièce" + (pz.gain > 1 ? "s" : "") : "") + ".");
-      son("deblocage");
+      son("enigme-ok");
+      if (pz.gain) setTimeout(() => son("piece"), 300);
     } else {
       G.failed += 1;
       if (p.kind === "wordle" || p.kind === "murdle" || p.kind === "mastermind") {
@@ -1788,7 +1825,7 @@
         G.stat.condamnesEtage += 1;
         log("Énigme ratée (" + p.label.toLowerCase() + ") : la porte est condamnée pour cette partie.");
       }
-      son("rature");
+      son("enigme-ko");
     }
     modaleResultat(ok, message);
     render();
@@ -2978,8 +3015,12 @@
       case "pack-reveler":
         if (G && G.pack) {
           G.pack.revele = true;
-          son("page");
+          son("paquet-dechire");
           modalePack();
+          G.pack.item.cartes.forEach((c, i) => {
+            const rare = SALLES_PAR_ID[c.id].niv >= 2;
+            setTimeout(() => G && G.pack && son(rare ? "carte-rare" : "carte-retournee"), 350 + i * 350);
+          });
         }
         break;
       case "pack-choisir":
@@ -3179,5 +3220,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();
