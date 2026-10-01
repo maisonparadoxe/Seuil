@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Code (Mastermind) à la dernière porte du 2e étage, fait** (voir plus bas).
 - **Enquête (Murdle) à la dernière porte du dernier étage, faite** (voir plus bas).
 - **Mot caché (Wordle) à la dernière porte, fait** (voir plus bas).
 - **Étape 7c : mode libre, faite** (voir plus bas). L'étape 7 est terminée.
@@ -341,9 +342,17 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
 
+### Le code : un Mastermind à la dernière porte du 2ᵉ étage (fait)
+
+- **Principe.** Code de 4 symboles (★ ☾ ♦ ♣ ♥ ♠), 6 symboles possibles, répétitions permises, 8 essais, 150 secondes. Après chaque essai : ● bon symbole bien placé, ○ bon symbole mal placé. Saisie par boutons colorés ou touches 1 à 6 ; ⌫ efface, ⏎ valide.
+- **Échec.** Comme le mot caché : −6 pas, code révélé, porte verrouillée, on retente avec un autre code.
+- **Équilibre.** Un solveur par élimination trouve toujours le code en 8 essais au plus (200 codes testés, 7 au maximum) : le jeu est donc toujours gagnable par déduction. Durée et pénalité à régler en jouant.
+
+Vérifié par des tests automatiques : notation comparée à une version de référence (2000 tirages), déterminisme, bon type de porte à chaque étage, saisie souris et clavier, victoire, échec ; et toutes les anciennes suites.
+
 ### L'enquête : un Murdle à la dernière porte du dernier étage (fait)
 
-- **Où.** Les étages 1 et 2 gardent le mot caché ; la dernière porte de l'étage 3 pose une enquête, l'épreuve finale. Le sceau ouvre toujours la porte sans énigme.
+- **Où.** L'étage 1 garde le mot caché, l'étage 2 a un code (Mastermind) ; la dernière porte de l'étage 3 pose une enquête, l'épreuve finale. Le sceau ouvre toujours la porte sans énigme.
 - **Principe.** Trois suspects, trois armes, trois lieux : chacun est dans un lieu différent et tient une arme différente. On connaît le lieu du crime ; des indices en français permettent de désigner le coupable et son arme (deux listes déroulantes, bouton « Accuser »). Un indice se barre au toucher.
 - **Générateur.** Un scénario caché est tiré par la graine ; les indices sont des affirmations vraies (« X se trouvait dans… », « X ne tenait pas… », « L'arme a été trouvée dans… ») ajoutées jusqu'à ce que la solution soit unique, puis les indices devenus inutiles sont retirés (3 à 6 indices). La solution unique est vérifiée par force brute sur les 36 scénarios.
 - **Temps et échec.** 180 secondes. Un échec coûte 6 pas, la solution est révélée, la porte reste verrouillée et on retente avec une autre enquête, comme pour le mot caché.

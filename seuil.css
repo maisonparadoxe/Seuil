@@ -522,3 +522,15 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .mu-choix { display: grid; gap: 8px; margin: 8px 0; }
 .mu-choix label { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; }
 .mu-choix select { font: inherit; font-size: 14px; padding: 7px 6px; background: var(--paper); border: 1px solid var(--ink); color: var(--ink); }
+
+/* Code (Mastermind de la dernière porte du 2e étage) */
+.mm-grille { display: grid; gap: 5px; margin: 10px auto; width: min(100%, 280px); }
+.mm-ligne { display: grid; grid-template-columns: 1fr 70px; align-items: center; gap: 8px; }
+.mm-cases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.mm-case { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(0, 0, 0, 0.3); font-size: 22px; color: var(--c); background: rgba(255, 255, 255, 0.4); }
+.mm-case.vide { background: rgba(255, 255, 255, 0.15); }
+.mm-fb { font-family: var(--font-mono); font-size: 15px; letter-spacing: 1px; color: var(--ink); }
+.mm-pal { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.mm-btn { width: 46px; height: 46px; font-size: 24px; color: var(--c); background: var(--paper); border: 2px solid rgba(0, 0, 0, 0.4); border-radius: 4px; cursor: pointer; }
+.mm-btn.mm-act { color: var(--ink); font-size: 18px; }
+.mm-btn.mm-ok { background: var(--stamp-red); color: #fff; border-color: var(--stamp-red); }
