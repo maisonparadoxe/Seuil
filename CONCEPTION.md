@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Enquête (Murdle) à la dernière porte du dernier étage, faite** (voir plus bas).
 - **Mot caché (Wordle) à la dernière porte, fait** (voir plus bas).
 - **Étape 7c : mode libre, faite** (voir plus bas). L'étape 7 est terminée.
 - **Étape 7b : joker fétiche, faite** (voir plus bas).
@@ -339,6 +340,16 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 - **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
+
+### L'enquête : un Murdle à la dernière porte du dernier étage (fait)
+
+- **Où.** Les étages 1 et 2 gardent le mot caché ; la dernière porte de l'étage 3 pose une enquête, l'épreuve finale. Le sceau ouvre toujours la porte sans énigme.
+- **Principe.** Trois suspects, trois armes, trois lieux : chacun est dans un lieu différent et tient une arme différente. On connaît le lieu du crime ; des indices en français permettent de désigner le coupable et son arme (deux listes déroulantes, bouton « Accuser »). Un indice se barre au toucher.
+- **Générateur.** Un scénario caché est tiré par la graine ; les indices sont des affirmations vraies (« X se trouvait dans… », « X ne tenait pas… », « L'arme a été trouvée dans… ») ajoutées jusqu'à ce que la solution soit unique, puis les indices devenus inutiles sont retirés (3 à 6 indices). La solution unique est vérifiée par force brute sur les 36 scénarios.
+- **Temps et échec.** 180 secondes. Un échec coûte 6 pas, la solution est révélée, la porte reste verrouillée et on retente avec une autre enquête, comme pour le mot caché.
+- **À régler en jouant.** La durée, la pénalité et la difficulté (un 4×4 serait trop dense sur téléphone ; une grille de notes intégrée est une amélioration possible).
+
+Vérifié par des tests automatiques : 300 enquêtes à solution unique et juste (force brute indépendante), 3 à 6 indices, déterminisme, Wordle à l'étage 2 et enquête à l'étage 3, mauvaise puis bonne accusation ; et toutes les anciennes suites.
 
 ## 6. Risques à surveiller
 

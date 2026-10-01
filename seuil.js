@@ -650,6 +650,89 @@
     }
     return res;
   }
+  // ---- L'enquête : un Murdle 3×3 à la dernière porte du dernier étage ----
+  const TEMPS_MURDLE = 180;
+  const MU_SUSPECTS = ["Mme Vasseur", "Aubin, le jardinier", "Le docteur Lambert", "Mlle Corvin", "Le comte de Sarre", "Mère Bérénice"];
+  const MU_ARMES = ["le chandelier", "la clé de cuivre", "le coupe-papier", "la corde", "le tisonnier", "le flacon d'encre"];
+  const MU_LIEUX = ["la cave", "la serre", "l'atelier", "la bibliothèque", "le grenier", "la chapelle"];
+  const PERMS3 = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+  const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
+  // Un indice vrai dans le scénario caché. pp[s] : lieu du suspect s ; pw[s] : arme du suspect s.
+  function indicesMurdle(pp, pw) {
+    const out = [];
+    for (let s = 0; s < 3; s++) {
+      for (let l = 0; l < 3; l++) out.push({ t: pp[s] === l ? "pos" : "npos", s, l });
+      for (let w = 0; w < 3; w++) out.push({ t: pw[s] === w ? "arm" : "narm", s, w });
+    }
+    for (let w = 0; w < 3; w++) for (let l = 0; l < 3; l++) out.push({ t: pp[pw.indexOf(w)] === l ? "armlieu" : "narmlieu", w, l });
+    return out;
+  }
+  function verifie(c, pp, pw) {
+    switch (c.t) {
+      case "pos": return pp[c.s] === c.l;
+      case "npos": return pp[c.s] !== c.l;
+      case "arm": return pw[c.s] === c.w;
+      case "narm": return pw[c.s] !== c.w;
+      case "armlieu": return pp[pw.indexOf(c.w)] === c.l;
+      default: return pp[pw.indexOf(c.w)] !== c.l;
+    }
+  }
+  // La solution (coupable, arme) est-elle la même dans tous les scénarios compatibles avec les indices ?
+  function uniqueMurdle(clues, lieuCrime) {
+    const sols = new Set();
+    PERMS3.forEach((pp) => PERMS3.forEach((pw) => {
+      if (clues.every((c) => verifie(c, pp, pw))) {
+        const k = pp.indexOf(lieuCrime);
+        sols.add(k + ":" + pw[k]);
+      }
+    }));
+    return sols.size === 1;
+  }
+  function makeMurdle(level) {
+    for (let essai = 0; essai < 200; essai++) {
+      const pp = pick(PERMS3), pw = pick(PERMS3);
+      const killer = Math.floor(R() * 3);
+      const lieuCrime = pp[killer];
+      let clues = shuffle(indicesMurdle(pp, pw));
+      const gardes = [];
+      for (const c of clues) {
+        gardes.push(c);
+        if (uniqueMurdle(gardes, lieuCrime)) break;
+      }
+      if (!uniqueMurdle(gardes, lieuCrime)) continue;
+      // on retire les indices devenus inutiles
+      let fin = gardes.slice();
+      for (let i = fin.length - 1; i >= 0; i--) {
+        const sans = fin.filter((_, j) => j !== i);
+        if (uniqueMurdle(sans, lieuCrime)) fin = sans;
+      }
+      if (fin.length < 3 || fin.length > 6) continue;
+      const suspects = shuffle(MU_SUSPECTS.slice()).slice(0, 3);
+      const armes = shuffle(MU_ARMES.slice()).slice(0, 3);
+      const lieux = shuffle(MU_LIEUX.slice()).slice(0, 3);
+      const texte = (c) => {
+        switch (c.t) {
+          case "pos": return suspects[c.s] + " se trouvait dans " + lieux[c.l] + ".";
+          case "npos": return suspects[c.s] + " ne se trouvait pas dans " + lieux[c.l] + ".";
+          case "arm": return suspects[c.s] + " tenait " + armes[c.w] + ".";
+          case "narm": return suspects[c.s] + " ne tenait pas " + armes[c.w] + ".";
+          case "armlieu": return majuscule(armes[c.w]) + " a été trouvé" + (/^la /.test(armes[c.w]) ? "e" : "") + " dans " + lieux[c.l] + ".";
+          default: return majuscule(armes[c.w]) + " n'était pas dans " + lieux[c.l] + ".";
+        }
+      };
+      return {
+        kind: "murdle", label: "L'enquête", level, theme: "logique",
+        suspects, armes, lieux, lieuCrime: lieux[lieuCrime],
+        indices: fin.map(texte),
+        sol: { s: killer, w: pw[killer] },
+        answer: suspects[killer] + " avec " + armes[pw[killer]],
+        reponseTexte: suspects[killer] + " avec " + armes[pw[killer]],
+      };
+    }
+    return makeWordle(level); // ne devrait jamais arriver : repli sûr
+  }
+
   const porteFinale = (P) => {
     const cible = G.grid[P.r + DIRS[P.d].dr][P.c + DIRS[P.d].dc];
     return !!(cible && cible.goal);
@@ -1219,6 +1302,7 @@
     const grippee = G.envs.some((x) => x.id === "serrure_grippee");
     G.pending = { r, c, d, level: grippee ? Math.min(3, e.level + 1) : e.level, theme: e.theme, grippee };
     G.pending.finale = porteFinale(G.pending);
+    G.pending.murdle = G.pending.finale && G.etage === ETAGES_TOTAL;
     modalePorte();
   }
 
@@ -1492,11 +1576,11 @@
     const P = G.pending;
     if (P.grippee) consommerGrippee();
     const porte = G.grid[P.r][P.c].door[P.d];
-    const p = avecFlux("enigme:" + G.etage + ":" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => (P.finale ? makeWordle(P.level) : makePuzzle(P.level, P.theme)));
+    const p = avecFlux("enigme:" + G.etage + ":" + P.r + "," + P.c + "," + P.d + ":" + (porte.essais || 0), () => (P.murdle ? makeMurdle(P.level) : P.finale ? makeWordle(P.level) : makePuzzle(P.level, P.theme)));
     porte.essais = (porte.essais || 0) + 1; // une porte retentée pose une autre énigme
     if (aJoker("loupe")) declencher("loupe", "+5 secondes", true);
     if (aJoker("sablier2")) declencher("sablier2", "+10 secondes", true);
-    const total = P.finale ? TEMPS_WORDLE + bonusTemps() : tempsPorte(P.level);
+    const total = P.murdle ? TEMPS_MURDLE + bonusTemps() : P.finale ? TEMPS_WORDLE + bonusTemps() : tempsPorte(P.level);
     pz = { puzzle: p, restant: total, total, fini: false };
     modaleEnigme();
     arreterChrono();
@@ -1551,10 +1635,10 @@
       son("deblocage");
     } else {
       G.failed += 1;
-      if (p.kind === "wordle") {
+      if (p.kind === "wordle" || p.kind === "murdle") {
         G.steps = Math.max(0, G.steps - PENALITE_WORDLE);
         pz.penalite = PENALITE_WORDLE;
-        log("Mot caché raté (" + p.answer.toUpperCase() + ") : −" + PENALITE_WORDLE + " pas. La porte reste verrouillée.");
+        log((p.kind === "murdle" ? "Enquête ratée" : "Mot caché raté") + " (" + (p.reponseTexte || p.answer.toUpperCase()) + ") : −" + PENALITE_WORDLE + " pas. La porte reste verrouillée.");
       } else if (aJoker("souffle") && !G.souffle) {
         G.souffle = true;
         pz.sauvee = true; // la porte reste verrouillée : on pourra la retenter
@@ -2069,10 +2153,10 @@
     const T = THEMES[P.theme];
     afficherModale(`
       <p class="modal-sur">Porte du ${d.nom} ${d.fleche}</p>
-      <h2>${P.finale ? "La dernière serrure" : "Une serrure sans clé"}</h2>
+      <h2>${P.murdle ? "La dernière serrure : l'enquête" : P.finale ? "La dernière serrure" : "Une serrure sans clé"}</h2>
       <p class="niveau"><span class="theme-tag" style="--t:${T.couleur}">${T.glyphe} ${T.nom}</span> Difficulté <span class="pips">${pips}</span></p>
       ${P.grippee ? `<p class="tirage-env">🔒 Serrure grippée : cette porte est plus dure qu'elle ne devrait.</p>` : ""}
-      ${P.finale ? `<p>Dernière porte de l'étage : un <b>mot caché de 5 lettres</b>, ${ESSAIS_WORDLE} essais, ${TEMPS_WORDLE + bonusTemps()} secondes. Vert : bien placée. Jaune : dans le mot, ailleurs. Gris : absente. Un échec coûte ${PENALITE_WORDLE} pas, la porte reste fermée et vous pourrez retenter avec un autre mot.</p>` : `<p>Une seule tentative, ${temps} secondes. Si vous échouez, la porte est condamnée pour toute la partie.${aJoker("souffle") && !G.souffle ? " 💨 Second souffle : ce premier échec ne condamnera pas la porte." : ""}</p>`}
+      ${P.murdle ? `<p>Dernière porte du dernier étage : une <b>enquête</b>. Des indices vous disent qui se trouvait où et qui tenait quoi ; il faut désigner le coupable et son arme. ${TEMPS_MURDLE + bonusTemps()} secondes. Un échec coûte ${PENALITE_WORDLE} pas, la porte reste fermée et vous pourrez retenter avec une autre enquête.</p>` : P.finale ? `<p>Dernière porte de l'étage : un <b>mot caché de 5 lettres</b>, ${ESSAIS_WORDLE} essais, ${TEMPS_WORDLE + bonusTemps()} secondes. Vert : bien placée. Jaune : dans le mot, ailleurs. Gris : absente. Un échec coûte ${PENALITE_WORDLE} pas, la porte reste fermée et vous pourrez retenter avec un autre mot.</p>` : `<p>Une seule tentative, ${temps} secondes. Si vous échouez, la porte est condamnée pour toute la partie.${aJoker("souffle") && !G.souffle ? " 💨 Second souffle : ce premier échec ne condamnera pas la porte." : ""}</p>`}
       <div class="boutons">
         <button class="btn principal" data-act="try">Tenter l'énigme</button>
         ${G.seals > 0 ? `<button class="btn" data-act="seal">Utiliser un sceau (${G.seals})</button>` : ""}
@@ -2088,6 +2172,30 @@
     f.style.width = pct + "%";
     f.parentNode.classList.toggle("urgent", pz.restant <= 8);
     if (t) t.textContent = Math.max(0, Math.ceil(pz.restant)) + " s";
+  }
+
+  function modaleMurdle() {
+    const p = pz.puzzle;
+    afficherModale(`
+      <p class="modal-sur"><span class="theme-tag" style="--t:${THEMES.logique.couleur}">${THEMES.logique.glyphe} ${THEMES.logique.nom}</span> ${esc(p.label)}</p>
+      <div class="chrono"><span id="chrono-barre"></span><span id="chrono-texte" class="chrono-texte"></span></div>
+      <p class="consigne">Le crime a eu lieu dans <b>${esc(p.lieuCrime)}</b>. Trois suspects, trois armes, trois lieux : chacun était dans un lieu différent et tenait une arme différente.</p>
+      <p class="mu-liste-titre">Suspects : ${p.suspects.map(esc).join(" · ")}<br>Armes : ${p.armes.map(esc).join(" · ")}<br>Lieux : ${p.lieux.map(esc).join(" · ")}</p>
+      <ul class="mu-indices">${p.indices.map((t) => `<li data-act="mu-note">${esc(t)}</li>`).join("")}</ul>
+      <p class="mu-aide">Touchez un indice pour le barrer une fois utilisé.</p>
+      <div class="mu-choix">
+        <label>Coupable <select id="mu-s">${p.suspects.map((x, i) => `<option value="${i}">${esc(x)}</option>`).join("")}</select></label>
+        <label>Arme <select id="mu-w">${p.armes.map((x, i) => `<option value="${i}">${esc(x)}</option>`).join("")}</select></label>
+      </div>
+      <div class="boutons"><button class="btn principal" data-act="mu-ok">Accuser</button></div>`, "enigme murdle sans-echap");
+    majChrono();
+  }
+  function accuser() {
+    if (!pz || pz.fini || pz.puzzle.kind !== "murdle") return;
+    const p = pz.puzzle;
+    const s = parseInt(document.getElementById("mu-s").value, 10);
+    const w = parseInt(document.getElementById("mu-w").value, 10);
+    resoudre(s === p.sol.s && w === p.sol.w, s === p.sol.s && w === p.sol.w ? "L'enquête aboutit." : "Mauvaise accusation.");
   }
 
   function modaleWordle() {
@@ -2149,6 +2257,7 @@
 
   function modaleEnigme() {
     if (pz.puzzle.kind === "wordle") return modaleWordle();
+    if (pz.puzzle.kind === "murdle") return modaleMurdle();
     const p = pz.puzzle;
     let corps;
     const grand = p.grand ? `<p class="enonce suite">${esc(p.grand)}</p>` : "";
@@ -2183,7 +2292,7 @@
       <p class="modal-sur">${ok ? "Réussi" : "Raté"}</p>
       <h2 class="${ok ? "ok" : "ko"}">${esc(message)}</h2>
       ${gain}
-      ${ok ? "" : p.kind === "wordle" ? `<p>Le mot était : <b>${esc(bonne.toUpperCase())}</b>.</p><p>−${pz.penalite} pas. La porte reste verrouillée : vous pourrez retenter, avec un autre mot.</p>` : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p><p>${pz.sauvee ? "💨 <b>Second souffle</b> : la porte n'est pas condamnée. Vous pourrez la retenter, avec une autre énigme." : "La porte est condamnée pour cette partie."}</p>`}
+      ${ok ? "" : p.kind === "wordle" || p.kind === "murdle" ? `<p>${p.kind === "murdle" ? "La solution était" : "Le mot était"} : <b>${esc(p.reponseTexte || bonne.toUpperCase())}</b>.</p><p>−${pz.penalite} pas. La porte reste verrouillée : vous pourrez retenter, avec ${p.kind === "murdle" ? "une autre enquête" : "un autre mot"}.</p>` : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p><p>${pz.sauvee ? "💨 <b>Second souffle</b> : la porte n'est pas condamnée. Vous pourrez la retenter, avec une autre énigme." : "La porte est condamnée pour cette partie."}</p>`}
       <div class="boutons"><button class="btn principal" data-act="after">${ok ? suite : "Continuer"}</button></div>`, (ok ? "reussi" : "rate") + " sans-echap");
     const b = document.querySelector('[data-act="after"]');
     if (b) b.focus();
@@ -2505,7 +2614,7 @@
     if (R2.murs) li.push("<b>Murs et salles fixes.</b> Une case en pierre est un mur : rien ne peut y être posé. Une salle marquée d'une punaise 📌 (boutique, puits...) est posée d'avance et ne bouge jamais" + (R2.gemmes ? ", même quand une gemme décale sa ligne : les autres salles glissent en la sautant." : "."));
     li.push("<b>Chaque pas coûte 1.</b> Traverser une porte, même pour revenir en arrière, consomme un pas. À zéro, l'expédition s'arrête.");
     li.push("<b>Les portes sont scellées.</b> Une porte verrouillée pose une énigme chronométrée : calcul, suite logique, orthographe. Trois niveaux de difficulté, de plus en plus durs en montant.");
-    li.push("<b>La dernière porte.</b> La porte qui mène à la Chambre est gardée par un <b>mot caché</b> de 5 lettres, façon Wordle : 6 essais, vert si la lettre est bien placée, jaune si elle est ailleurs dans le mot, gris si elle n'y est pas. Un échec coûte 6 pas mais ne condamne pas la porte : vous pouvez retenter avec un autre mot.");
+    li.push("<b>La dernière porte.</b> La porte qui mène à la Chambre est gardée par un <b>mot caché</b> de 5 lettres, façon Wordle : 6 essais, vert si la lettre est bien placée, jaune si elle est ailleurs dans le mot, gris si elle n'y est pas. Un échec coûte 6 pas mais ne condamne pas la porte : vous pouvez retenter avec un autre mot. Au dernier étage, c'est une <b>enquête</b> : des indices disent qui se trouvait où et qui tenait quoi, et il faut désigner le coupable et son arme.");
     li.push("<b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.");
     li.push("<b>Vos salles sont des cartes.</b> Vous partez avec un deck de 8 cartes. À chaque porte, vous tirez 3 cartes de la pioche et vous en posez une derrière la porte, avec ses propres portes. Les trois cartes vont ensuite à la défausse ; quand la pioche est presque vide, on y remélange la défausse. Touchez « Deck » pour voir vos cartes.");
     li.push("<b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.");
@@ -2716,6 +2825,12 @@
       case "mcq":
         repondre(el.getAttribute("data-v"));
         break;
+      case "mu-note":
+        el.classList.toggle("barre");
+        break;
+      case "mu-ok":
+        accuser();
+        break;
       case "wk":
         saisirLettre(el.getAttribute("data-k"));
         break;
@@ -2822,5 +2937,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();
