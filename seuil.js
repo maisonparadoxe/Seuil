@@ -1238,10 +1238,67 @@
     return { id, nom: P.nom, desc: P.desc, prix: P.prix, theme, cartes };
   }
 
+  // ---- Débordement : au-delà du maximum, on choisit les cartes à jeter (gratuit, définitif) ----
+  function verifierDebord(nouvelleUid, suite) {
+    const exces = G.deck.length - plafondDeck();
+    if (exces <= 0) return suite();
+    G.debord = { nouvelle: nouvelleUid, exces, sel: [], suite };
+    son("rature");
+    modaleDebord();
+  }
+  function modaleDebord() {
+    const D = G.debord;
+    const cartes = G.deck
+      .slice()
+      .sort((a, b) => (b.uid === D.nouvelle) - (a.uid === D.nouvelle) || SALLES_PAR_ID[a.id].niv - SALLES_PAR_ID[b.id].niv || SALLES_PAR_ID[a.id].nom.localeCompare(SALLES_PAR_ID[b.id].nom))
+      .map((card) => {
+        const t = SALLES_PAR_ID[card.id];
+        const sel = D.sel.includes(card.uid);
+        return `<button class="carte-salle ${t.kind} debord-carte${sel ? " sel-jeter" : ""}${card.uid === D.nouvelle ? " nouvelle" : ""}" data-act="debord-sel" data-uid="${card.uid}" aria-pressed="${sel}">
+          <span class="mini">${apercuCarte(card)}</span>
+          <span class="cs-nom">${esc(t.nom)} ${niveauTag(t)}</span>
+          ${card.uid === D.nouvelle ? `<span class="nouvelle-tag">Nouvelle</span>` : ""}
+          <span class="cs-fx">${esc(effetTexte(t.fx))}</span>
+          ${card.theme ? `<span class="cs-theme theme-tag" style="--t:${THEMES[card.theme].couleur}">${THEMES[card.theme].glyphe} ${THEMES[card.theme].nom}</span>` : ""}
+          ${sel ? `<span class="jeter-marque">✕ À jeter</span>` : ""}
+        </button>`;
+      })
+      .join("");
+    const reste = D.exces - D.sel.length;
+    afficherModale(`
+      <p class="modal-sur">Votre deck déborde</p>
+      <h2>${G.deck.length}/${plafondDeck()} cartes</h2>
+      <p class="note-deck">Le maximum est de ${plafondDeck()}. Choisissez <b>${D.exces} carte${D.exces > 1 ? "s" : ""}</b> à jeter, définitivement et gratuitement. Vous pouvez jeter la carte que vous venez de recevoir.</p>
+      <div class="tirage debord-liste">${cartes}</div>
+      <div class="boutons"><button class="btn principal" data-act="debord-ok"${reste === 0 ? "" : " disabled"}>${reste === 0 ? "Jeter " + D.sel.length + " carte" + (D.sel.length > 1 ? "s" : "") : "Encore " + reste + " à choisir"}</button></div>`, "recompense-modal debord-modal sans-echap");
+  }
+  function basculerDebord(uid) {
+    const D = G.debord;
+    if (!D || !G.deck.some((c) => c.uid === uid)) return;
+    if (D.sel.includes(uid)) D.sel = D.sel.filter((x) => x !== uid);
+    else if (D.sel.length < D.exces) D.sel.push(uid);
+    else D.sel = D.sel.slice(1).concat(uid); // au-delà du nombre voulu, le plus ancien choix est remplacé
+    son("clic");
+    modaleDebord();
+  }
+  function validerDebord() {
+    const D = G.debord;
+    if (!D || D.sel.length !== D.exces) return;
+    D.sel.forEach((uid) => {
+      const c = G.deck.find((x) => x.uid === uid);
+      if (c) log("Vous jetez la carte « " + SALLES_PAR_ID[c.id].nom + " ».");
+      retirerCarte(uid);
+    });
+    const suite = D.suite;
+    G.debord = null;
+    son("tampon");
+    suite();
+  }
+
   function acheterPack(i) {
     const B = G.boutique;
     const it = B && B.packs && B.packs[i];
-    if (!it || G.coins < it.prix || deckPlein()) return;
+    if (!it || G.coins < it.prix) return;
     G.coins -= it.prix;
     G.achats += 1;
     B.packs.splice(i, 1);
@@ -1288,12 +1345,14 @@
     const K = G.pack;
     const card = K && K.revele && K.item.cartes[i];
     if (!card) return;
-    ajouterCarte(card);
+    const nouvelle = ajouterCarte(card);
     log("Paquet : la carte « " + SALLES_PAR_ID[card.id].nom + " » rejoint votre deck.");
     G.pack = null;
     son("tampon");
-    modaleBoutique();
-    render();
+    verifierDebord(nouvelle.uid, () => {
+      modaleBoutique();
+      render();
+    });
   }
 
   // Une porte de niveau 2 ou 3 peut offrir une carte nouvelle ; la Boutique est proposée d'office la première fois.
@@ -1332,11 +1391,11 @@
   function choisirRecompense(i) {
     const P = G.pending;
     const card = P && P.recompense && P.recompense.cartes[i];
-    if (!card || deckPlein()) return;
-    ajouterCarte(card);
+    if (!card) return;
+    const c = ajouterCarte(card);
     log("Récompense : la carte « " + SALLES_PAR_ID[card.id].nom + " » rejoint votre deck.");
     son("punaise");
-    suiteApresPorte();
+    verifierDebord(c.uid, () => suiteApresPorte());
   }
 
   // n jokers que le joueur n'a pas encore, tirés selon leur rareté (flux courant)
@@ -1425,15 +1484,17 @@
   function acheter(i) {
     const B = G.boutique;
     const item = B && B.stock[i];
-    if (!item || G.coins < item.prix || deckPlein()) return;
+    if (!item || G.coins < item.prix) return;
     G.coins -= item.prix;
     G.achats += 1;
-    ajouterCarte(item.card);
+    const nouvelle = ajouterCarte(item.card);
     B.stock.splice(i, 1);
     log("Achat : « " + SALLES_PAR_ID[item.card.id].nom + " » (−" + item.prix + " pièces).");
     son("punaise");
-    modaleBoutique();
-    render();
+    verifierDebord(nouvelle.uid, () => {
+      modaleBoutique();
+      render();
+    });
   }
 
   function retirerAchat(uid) {
@@ -2763,7 +2824,7 @@
       .map((card, i) => {
         const t = SALLES_PAR_ID[card.id];
         const sorties = (t.doors || []).length;
-        return `<button class="carte-salle ${t.kind}" data-act="recomp" data-i="${i}"${plein ? " disabled" : ""}>
+        return `<button class="carte-salle ${t.kind}" data-act="recomp" data-i="${i}">
           <span class="mini">${apercuCarte(card)}</span>
           <span class="cs-nom">${esc(t.nom)} ${niveauTag(t)}</span>
           <span class="cs-desc">${esc(t.desc)}</span>
@@ -2776,9 +2837,9 @@
     afficherModale(`
       <p class="modal-sur">Récompense</p>
       <h2>Une carte pour votre deck</h2>
-      <p class="note-deck">Choisissez-en une : elle rejoint la défausse et reviendra dans vos tirages. Deck : ${G.deck.length}/${plafondDeck()}.${plein ? " <b>Deck plein</b> : retirez une carte dans une boutique pour faire de la place." : ""}</p>
+      <p class="note-deck">Choisissez-en une : elle rejoint la défausse et reviendra dans vos tirages. Deck : ${G.deck.length}/${plafondDeck()}.${plein ? " <b>Deck plein</b> : vous devrez jeter une carte pour garder celle-ci." : ""}</p>
       <div class="tirage">${cartes}</div>
-      <div class="boutons"><button class="btn${plein ? " principal" : " lien"}" data-act="recomp-passer">${plein ? "Continuer" : "Passer"}</button></div>`, "recompense-modal sans-echap");
+      <div class="boutons"><button class="btn lien" data-act="recomp-passer">Passer</button></div>`, "recompense-modal sans-echap");
   }
 
   function jokerLigne(j, action) {
@@ -2826,7 +2887,7 @@
           .map((it, i) => {
             const t = SALLES_PAR_ID[it.card.id];
             const sorties = (t.doors || []).length;
-            const raison = plein ? "Deck plein" : G.coins < it.prix ? "Trop cher" : "";
+            const raison = G.coins < it.prix ? "Trop cher" : "";
             return `<li class="offre">
               <span class="mini">${apercuCarte(it.card)}</span>
               <span class="offre-txt"><span class="cs-nom">${esc(t.nom)}</span> ${niveauTag(t)} ${themeTag(it.card)}<br>
@@ -2839,7 +2900,7 @@
       : `<li class="vide">Tout est vendu.</li>`;
     const paquets = (B.packs || [])
       .map((it, i) => {
-        const raison = plein ? "Deck plein" : G.coins < it.prix ? "Trop cher" : "";
+        const raison = G.coins < it.prix ? "Trop cher" : "";
         return `<li class="offre offre-pack">
           <span class="mini pack-ico">🎴</span>
           <span class="offre-txt"><span class="cs-nom">${esc(it.nom)}</span>${it.theme ? ` <span class="theme-tag" style="--t:${THEMES[it.theme].couleur}">${THEMES[it.theme].glyphe} ${THEMES[it.theme].nom}</span>` : ""}<br><span class="cs-desc">${esc(it.desc)} Vous en gardez une.</span></span>
@@ -2860,7 +2921,7 @@
     afficherModale(`
       <p class="modal-sur">${B.type === "carte" ? "Boutique" : B.type === "etage" ? "Entre deux étages" : "Marchand de passage"}</p>
       <h2>Vos pièces : ${G.coins} 🪙</h2>
-      <p class="note-deck">Deck : ${G.deck.length}/${plafondDeck()}${plein ? " (plein)" : ""}. Une carte achetée rejoint la défausse.</p>
+      <p class="note-deck">Deck : ${G.deck.length}/${plafondDeck()}${plein ? " (plein : toute nouvelle carte vous obligera à en jeter une)" : ""}. Une carte achetée rejoint la défausse.</p>
       <ul class="boutique-liste">${paquets}${stock}</ul>
       ${jokersBoutiqueHTML()}
       <details class="retrait">
@@ -3081,6 +3142,12 @@
       case "acheter":
         acheter(parseInt(el.getAttribute("data-i"), 10));
         break;
+      case "debord-sel":
+        basculerDebord(parseInt(el.getAttribute("data-uid"), 10));
+        break;
+      case "debord-ok":
+        validerDebord();
+        break;
       case "acheter-pack":
         acheterPack(parseInt(el.getAttribute("data-i"), 10));
         break;
@@ -3295,5 +3362,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, verifierDebord, ajouterCarte, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

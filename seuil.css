@@ -558,3 +558,15 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .mem-carte.cache:active { transform: scale(0.95); }
 .mem-carte.trouve { background: rgba(76, 122, 69, 0.25); border-color: #4C7A45; cursor: default; }
 .mem-carte.visible { cursor: default; }
+
+/* Débordement du deck : cartes à jeter */
+.debord-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 52vh; overflow-y: auto; }
+.debord-carte { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px; min-width: 0; }
+.debord-carte .mini { width: 100%; height: auto; aspect-ratio: 1; }
+.debord-carte .cs-nom { font-size: 13px; line-height: 1.2; }
+.debord-carte .cs-fx { font-size: 10.5px; }
+@media (min-width: 700px) { .debord-liste { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.debord-carte.nouvelle { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+.debord-carte.sel-jeter { border-color: var(--stamp-red); background: rgba(154, 43, 37, 0.14); opacity: 0.85; }
+.nouvelle-tag { align-self: flex-start; font-family: var(--font-mono); font-size: 10.5px; background: var(--gold); color: #fff; padding: 1px 6px; border-radius: 2px; }
+.jeter-marque { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--stamp-red); }

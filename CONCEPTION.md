@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Débordement du deck avec écran de défausse, fait** (voir plus bas).
 - **Thème Mémoire (Memory), fait** (voir plus bas). L'idée « Oreille » est écartée pour l'instant : elle fera peut-être l'objet d'un jeu dédié.
 - **Niveaux des salles et paquets en boutique, faits** (voir plus bas). Reste : le paquet de départ (palier 3 et plus), à décider après essai.
 - **Code (Mastermind) à la dernière porte du 2e étage, fait** (voir plus bas).
@@ -343,6 +344,16 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 - **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
+
+### Débordement du deck : jeter des cartes (fait)
+
+- **Plus de refus.** Acheter une carte ou un paquet, ou prendre une récompense quand le deck est plein n'est plus bloqué. Après avoir reçu la carte, si le deck dépasse le maximum (15, ou moins avec le Pacte du fondeur), un écran « Votre deck déborde : 16/15 » s'ouvre.
+- **L'écran.** Toutes les cartes du deck sont affichées en grille, la nouvelle marquée ; on choisit autant de cartes que l'excès. Elles sont jetées **définitivement et gratuitement** (le retrait payant en boutique reste pour alléger volontairement son deck). On peut jeter la carte qu'on vient de recevoir. Le bouton reste grisé tant que le bon nombre n'est pas choisi ; Échap ne ferme pas l'écran. Choisir une carte de plus que prévu remplace le plus ancien choix.
+- **Suite.** Après avoir jeté, le jeu reprend là où il en était : retour à la boutique (achat ou paquet) ou suite de la porte (récompense).
+- **Vocabulaire.** Dans l'interface, on « jette » une carte ; la « défausse » désigne uniquement la pile des cartes jouées.
+- **Inchangé.** Vendre un joker qui ferait dépasser le plafond (Sacoche) ou acheter le Pacte avec un deck trop grand restent refusés, pour garder un message clair.
+
+Vérifié par des tests automatiques : achat à 15 cartes, jet de la nouvelle ou d'une ancienne carte, cohérence pioche/défausse/deck, paquet, récompense, excès de 3 cartes avec le Pacte, Échap, suite appelée ; et toutes les anciennes suites (deux tests de refus remplacés).
 
 ### Le thème Mémoire : un Memory (fait)
 
