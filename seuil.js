@@ -654,6 +654,14 @@
       for (let i = 0; i < n; i += par) lignes.push(items.slice(i, i + par).join(" "));
       return { kind: "num", label: "Comptage", consigne: "Combien de " + cible + " voyez-vous ?", text: lignes.join("\n"), grille: true, answer: nb };
     },
+    // Memory : on mémorise les cartes pendant quelques secondes, puis on retrouve les paires
+    memoire(l) {
+      const SYM = ["🦎", "🗝", "🕯", "👁", "📜", "⚓", "🔔", "🗡"];
+      const paires = [3, 6, 8][l - 1];
+      const choisis = shuffle(SYM.slice()).slice(0, paires);
+      const cartes = shuffle(choisis.concat(choisis));
+      return { kind: "memoire", label: "Mémoire", cartes, cols: [3, 4, 4][l - 1], paires, erreursMax: Math.round(paires * 1.5), erreurs: 0, etats: cartes.map(() => "visible"), ouvertes: [], phase: "apercu", trouvees: 0, verrou: false, answer: "memoire" };
+    },
     ortho(l) {
       const liste = MOTS.filter((m) => m[0] === l);
       const m = pick(liste);
@@ -671,6 +679,8 @@
   }
 
   const TEMPS_BASE = { 1: 40, 2: 35, 3: 30 };
+  const TEMPS_MEMOIRE = { 1: 35, 2: 55, 3: 75 };
+  const APERCU_MEMOIRE = { 1: 3, 2: 4, 3: 5 }; // secondes pendant lesquelles les cartes sont visibles
   const TEMPS_WORDLE = 120;
   const ESSAIS_WORDLE = 6;
   const PENALITE_WORDLE = 6;
@@ -815,13 +825,14 @@
     return !!(cible && cible.goal);
   };
 
-  // Les quatre thèmes. La couleur d'une salle est le thème des énigmes
+  // Les cinq thèmes. La couleur d'une salle est le thème des énigmes
   // qui gardent ses portes de sortie.
   const THEMES = {
     chiffres: { nom: "Chiffres", couleur: "#3F5B66", glyphe: "#", gens: ["add", "sub", "mul"] },
     mots: { nom: "Mots", couleur: "#9A2B25", glyphe: "A", gens: ["ortho", "anagramme"] },
     logique: { nom: "Logique", couleur: "#4C5A4E", glyphe: "?", gens: ["suite", "intrus"] },
     symboles: { nom: "Symboles", couleur: "#B98B2A", glyphe: "★", gens: ["motif", "compte"] },
+    memoire: { nom: "Mémoire", couleur: "#6B4E8A", glyphe: "◈", gens: ["memoire"] },
   };
   const THEME_IDS = Object.keys(THEMES);
 
@@ -1751,7 +1762,7 @@
     porte.essais = (porte.essais || 0) + 1; // une porte retentée pose une autre énigme
     if (aJoker("loupe")) declencher("loupe", "+5 secondes", true);
     if (aJoker("sablier2")) declencher("sablier2", "+10 secondes", true);
-    const total = P.murdle ? TEMPS_MURDLE + bonusTemps() : P.mastermind ? TEMPS_MASTERMIND + bonusTemps() : P.finale ? TEMPS_WORDLE + bonusTemps() : tempsPorte(P.level);
+    const total = P.murdle ? TEMPS_MURDLE + bonusTemps() : P.mastermind ? TEMPS_MASTERMIND + bonusTemps() : P.finale ? TEMPS_WORDLE + bonusTemps() : p.kind === "memoire" ? TEMPS_MEMOIRE[P.level] + bonusTemps() : tempsPorte(P.level);
     pz = { puzzle: p, restant: total, total, fini: false };
     modaleEnigme();
     arreterChrono();
@@ -2327,7 +2338,7 @@
   function modalePorte() {
     const P = G.pending;
     const d = DIRS[P.d];
-    const temps = tempsPorte(P.level);
+    const temps = P.theme === "memoire" ? TEMPS_MEMOIRE[P.level] + bonusTemps() : tempsPorte(P.level);
     const pips = "●".repeat(P.level) + "○".repeat(3 - P.level);
     const T = THEMES[P.theme];
     afficherModale(`
@@ -2430,6 +2441,62 @@
     resoudre(s === p.sol.s && w === p.sol.w, s === p.sol.s && w === p.sol.w ? "L'enquête aboutit." : "Mauvaise accusation.");
   }
 
+  function modaleMemoire() {
+    const p = pz.puzzle;
+    const cases = p.cartes
+      .map((sym, i) => {
+        const e = p.etats[i];
+        const visible = e !== "cache";
+        return `<button class="mem-carte ${e}" data-act="mem" data-i="${i}" ${p.phase === "jeu" && e === "cache" && !p.verrou ? "" : "tabindex=\"-1\""} aria-label="${visible ? sym : "Carte cachée"}">${visible ? sym : "?"}</button>`;
+      })
+      .join("");
+    afficherModale(`
+      <p class="modal-sur"><span class="theme-tag" style="--t:${THEMES.memoire.couleur}">${THEMES.memoire.glyphe} ${THEMES.memoire.nom}</span> ${esc(p.label)} · difficulté ${"●".repeat(p.level)}${"○".repeat(3 - p.level)}</p>
+      <div class="chrono"><span id="chrono-barre"></span><span id="chrono-texte" class="chrono-texte"></span></div>
+      <p class="consigne">${p.phase === "apercu" ? "Mémorisez les cartes : elles vont se cacher." : "Retrouvez toutes les paires."}</p>
+      <div class="mem-grille" style="--cols:${p.cols}">${cases}</div>
+      <p class="mu-aide">Paires : ${p.trouvees}/${p.paires} · Erreurs : ${p.erreurs}/${p.erreursMax} (au-delà, la porte est condamnée)</p>`, "enigme memoire sans-echap");
+    majChrono();
+  }
+  function lancerApercuMemoire() {
+    const p = pz.puzzle;
+    const pzActuel = pz;
+    pzActuel.tmo = setTimeout(() => {
+      if (pz !== pzActuel || pz.fini) return;
+      p.phase = "jeu";
+      p.etats = p.etats.map(() => "cache");
+      modaleMemoire();
+    }, APERCU_MEMOIRE[p.level] * 1000);
+  }
+  function memoireTap(i) {
+    const p = pz && !pz.fini && pz.puzzle.kind === "memoire" ? pz.puzzle : null;
+    if (!p || p.phase !== "jeu" || p.verrou || p.etats[i] !== "cache") return;
+    p.etats[i] = "visible";
+    p.ouvertes.push(i);
+    son("clic");
+    if (p.ouvertes.length < 2) return modaleMemoire();
+    const [a, b] = p.ouvertes;
+    if (p.cartes[a] === p.cartes[b]) {
+      p.etats[a] = p.etats[b] = "trouve";
+      p.ouvertes = [];
+      p.trouvees += 1;
+      if (p.trouvees === p.paires) return resoudre(true, "Toutes les paires sont retrouvées.");
+      return modaleMemoire();
+    }
+    p.erreurs += 1;
+    p.verrou = true;
+    modaleMemoire();
+    const pzActuel = pz;
+    pzActuel.tmo = setTimeout(() => {
+      if (pz !== pzActuel || pz.fini) return;
+      if (p.erreurs > p.erreursMax) return resoudre(false, "Trop d'erreurs.");
+      p.etats[a] = p.etats[b] = "cache";
+      p.ouvertes = [];
+      p.verrou = false;
+      modaleMemoire();
+    }, 700);
+  }
+
   function modaleWordle() {
     const p = pz.puzzle;
     const lignes = [];
@@ -2488,6 +2555,11 @@
   }
 
   function modaleEnigme() {
+    if (pz.puzzle.kind === "memoire") {
+      modaleMemoire();
+      lancerApercuMemoire();
+      return;
+    }
     if (pz.puzzle.kind === "wordle") return modaleWordle();
     if (pz.puzzle.kind === "murdle") return modaleMurdle();
     if (pz.puzzle.kind === "mastermind") return modaleMastermind();
@@ -2525,7 +2597,7 @@
       <p class="modal-sur">${ok ? "Réussi" : "Raté"}</p>
       <h2 class="${ok ? "ok" : "ko"}">${esc(message)}</h2>
       ${gain}
-      ${ok ? "" : p.kind === "wordle" || p.kind === "murdle" || p.kind === "mastermind" ? `<p>${p.kind === "murdle" ? "La solution était" : p.kind === "mastermind" ? "Le code était" : "Le mot était"} : <b>${esc(p.reponseTexte || bonne.toUpperCase())}</b>.</p><p>−${pz.penalite} pas. La porte reste verrouillée : vous pourrez retenter, avec ${p.kind === "murdle" ? "une autre enquête" : p.kind === "mastermind" ? "un autre code" : "un autre mot"}.</p>` : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p><p>${pz.sauvee ? "💨 <b>Second souffle</b> : la porte n'est pas condamnée. Vous pourrez la retenter, avec une autre énigme." : "La porte est condamnée pour cette partie."}</p>`}
+      ${ok ? "" : p.kind === "wordle" || p.kind === "murdle" || p.kind === "mastermind" ? `<p>${p.kind === "murdle" ? "La solution était" : p.kind === "mastermind" ? "Le code était" : "Le mot était"} : <b>${esc(p.reponseTexte || bonne.toUpperCase())}</b>.</p><p>−${pz.penalite} pas. La porte reste verrouillée : vous pourrez retenter, avec ${p.kind === "murdle" ? "une autre enquête" : p.kind === "mastermind" ? "un autre code" : "un autre mot"}.</p>` : `${p.kind === "memoire" ? "<p>Vous n'avez pas retrouvé toutes les paires.</p>" : `<p>La bonne réponse était : <b>${esc(bonne)}</b>.</p>`}<p>${pz.sauvee ? "💨 <b>Second souffle</b> : la porte n'est pas condamnée. Vous pourrez la retenter, avec une autre énigme." : "La porte est condamnée pour cette partie."}</p>`}
       <div class="boutons"><button class="btn principal" data-act="after">${ok ? suite : "Continuer"}</button></div>`, (ok ? "reussi" : "rate") + " sans-echap");
     const b = document.querySelector('[data-act="after"]');
     if (b) b.focus();
@@ -2860,7 +2932,7 @@
     li.push("<b>La dernière porte.</b> La porte qui mène à la Chambre est gardée par un <b>mot caché</b> de 5 lettres, façon Wordle : 6 essais, vert si la lettre est bien placée, jaune si elle est ailleurs dans le mot, gris si elle n'y est pas. Un échec coûte 6 pas mais ne condamne pas la porte : vous pouvez retenter avec un autre mot. Au 2ᵉ étage, c'est un <b>code</b> de 4 symboles parmi 6 à retrouver en 8 essais (● bien placé, ○ mal placé). Au dernier étage, c'est une <b>enquête</b> : des indices disent qui se trouvait où et qui tenait quoi, et il faut désigner le coupable et son arme.");
     li.push("<b>Une seule chance.</b> Rater ou laisser filer le temps condamne la porte pour toute la partie. Si vous résolvez l'énigme, vous choisissez <b>une salle parmi trois</b>.");
     li.push("<b>Vos salles sont des cartes.</b> Vous partez avec un deck de 8 cartes. À chaque porte, vous tirez 3 cartes de la pioche et vous en posez une derrière la porte, avec ses propres portes. Les trois cartes vont ensuite à la défausse ; quand la pioche est presque vide, on y remélange la défausse. Touchez « Deck » pour voir vos cartes.");
-    li.push("<b>Quatre thèmes, quatre couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.");
+    li.push("<b>Cinq thèmes, cinq couleurs.</b> Chiffres (bleu), Mots (rouge), Logique (vert), Symboles (or), Mémoire (violet : un jeu de paires à retrouver, avec un temps pour mémoriser les cartes). La couleur d'une carte est fixe : c'est le thème des énigmes des portes de sortie de la salle. En choisissant une salle, vous choisissez ce que vous affronterez ensuite.");
     li.push("<b>Niveaux des salles et paquets.</b> Chaque salle a un niveau : ○ base, ◐ courant, ● avancé, ★ rare. Au 1er étage, on trouve surtout des salles de base ; les niveaux plus forts n'apparaissent qu'en descendant. En boutique, des paquets de cartes se découvrent carte par carte : on en garde une et les autres sont perdues.");
     li.push("<b>Dés et sceaux.</b> Un dé défausse les 3 cartes tirées et en tire 3 nouvelles. Un sceau ouvre une porte sans énigme.");
     li.push("<b>Pièces, récompenses, boutique.</b> Une énigme résolue rapporte des pièces (2, 3 ou 5 selon la porte, plus 1 si vous êtes rapide). Les portes difficiles offrent parfois une carte nouvelle. Une carte Boutique, ou un marchand qui vous attend toutes les 10 salles posées, vend des cartes et permet d'en retirer contre des pièces. Le deck est limité à 15 cartes.");
@@ -3091,6 +3163,9 @@
         break;
       case "mcq":
         repondre(el.getAttribute("data-v"));
+        break;
+      case "mem":
+        memoireTap(parseInt(el.getAttribute("data-i"), 10));
         break;
       case "mm":
         mmAjouter(parseInt(el.getAttribute("data-k"), 10));

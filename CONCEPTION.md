@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Thème Mémoire (Memory), fait** (voir plus bas). L'idée « Oreille » est écartée pour l'instant : elle fera peut-être l'objet d'un jeu dédié.
 - **Niveaux des salles et paquets en boutique, faits** (voir plus bas). Reste : le paquet de départ (palier 3 et plus), à décider après essai.
 - **Code (Mastermind) à la dernière porte du 2e étage, fait** (voir plus bas).
 - **Enquête (Murdle) à la dernière porte du dernier étage, faite** (voir plus bas).
@@ -342,6 +343,16 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 - **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
+
+### Le thème Mémoire : un Memory (fait)
+
+- **Cinquième couleur** (violet, ◈) : les portes des salles Mémoire posent un Memory. Comme pour les autres thèmes, c'est la couleur de la carte de la salle qui décide : un joueur peut éviter ce thème en ne prenant pas ces cartes. Le deck de départ n'en contient pas ; elles arrivent par les paquets, les récompenses et la boutique.
+- **Principe.** Les cartes sont visibles quelques secondes (3, 4 ou 5 s selon le niveau), puis se cachent ; on retrouve les paires. Niveau 1 : 6 cartes, niveau 2 : 12, niveau 3 : 16. Temps : 35, 55 et 75 s (plus les bonus). Erreurs autorisées : 5, 9 et 12 ; au-delà, ou si le temps est écoulé, la porte est condamnée, comme les autres énigmes.
+- **Symboles** de l'univers (salamandre, clé, bougie, œil, parchemin, ancre, cloche, dague).
+- **À régler en jouant.** Temps d'aperçu, durée, erreurs autorisées.
+- **Écarté :** le thème Oreille (retrouver une fréquence). Il demande un son, ce qui exclut des joueurs ; mieux vaut un jeu à part.
+
+Vérifié par des tests automatiques : paires exactes sur 300 grilles, nombre de cartes par niveau, thème présent dans les offres, annonce du temps, aperçu puis cachage, erreur puis recachage, victoire, défaite par erreurs avec message adapté ; et toutes les anciennes suites.
 
 ### Niveaux des salles et paquets en boutique (fait)
 

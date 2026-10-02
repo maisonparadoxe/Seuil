@@ -550,3 +550,11 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .pack-reveal.niv3 { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(185, 139, 42, 0.8); }
 .pack-reveal.niv2 { box-shadow: 0 0 0 2px #9A2B25; }
 @media (prefers-reduced-motion: reduce) { .pack-reveal { opacity: 1; animation: none; } }
+
+/* Mémoire (Memory) */
+.mem-grille { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 8px; margin: 12px auto; width: min(100%, 300px); }
+.mem-carte { aspect-ratio: 1; font-size: 30px; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(0, 0, 0, 0.4); border-radius: 5px; background: var(--paper); color: var(--ink); cursor: pointer; transition: transform 0.15s; }
+.mem-carte.cache { background: #2A2620; color: var(--gold); border-color: var(--gold); font-family: var(--font-display); }
+.mem-carte.cache:active { transform: scale(0.95); }
+.mem-carte.trouve { background: rgba(76, 122, 69, 0.25); border-color: #4C7A45; cursor: default; }
+.mem-carte.visible { cursor: default; }
