@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Pion personnalisable (forme et couleur), fait** (voir plus bas).
 - **Débordement du deck avec écran de défausse, fait** (voir plus bas).
 - **Thème Mémoire (Memory), fait** (voir plus bas). L'idée « Oreille » est écartée pour l'instant : elle fera peut-être l'objet d'un jeu dédié.
 - **Niveaux des salles et paquets en boutique, faits** (voir plus bas). Reste : le paquet de départ (palier 3 et plus), à décider après essai.
@@ -344,6 +345,15 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 - **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
+
+### Le pion personnalisable (fait)
+
+- **Menu.** Une section « Votre pion » avec 8 formes (salamandre, rond, losange, triangle, étoile, croix, serrure, flamme) et 8 couleurs (rouge, or, bleu, vert, violet, rose, ivoire, noir), avec un aperçu. Le choix est sauvegardé dans le navigateur (`seuil-pion`) ; par défaut : salamandre rouge. Une valeur sauvegardée invalide retombe sur le défaut.
+- **En partie.** Le pion de la grille prend la forme et la couleur choisies ; la salamandre est entourée de la couleur.
+- **Aucun effet** sur la graine ni sur les règles. Pistes pour plus tard : formes à débloquer par exploit.
+- **Pas encore fait** : l'écran « Préparer l'expédition » avec le deck de départ visible.
+
+Vérifié par des tests automatiques : 8 formes et 8 couleurs, défaut, sauvegarde et rechargement, affichage en partie, les 64 combinaisons, valeur invalide ; et toutes les anciennes suites.
 
 ### Débordement du deck : jeter des cartes (fait)
 

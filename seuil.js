@@ -435,6 +435,48 @@
     } catch (e) {}
   }
 
+  // ---- Pion : forme et couleur au choix ----
+  const FORMES_PION = {
+    salamandre: { nom: "Salamandre" },
+    rond: { nom: "Rond", svg: `<circle cx="12" cy="12" r="8"/>` },
+    losange: { nom: "Losange", svg: `<path d="M12 2.5 21.5 12 12 21.5 2.5 12Z"/>` },
+    triangle: { nom: "Triangle", svg: `<path d="M12 3 21.5 20.5H2.5Z"/>` },
+    etoile: { nom: "Étoile", svg: `<polygon points="12,2 14.9,8.6 22,9.3 16.6,14 18.2,21 12,17.3 5.8,21 7.4,14 2,9.3 9.1,8.6"/>` },
+    croix: { nom: "Croix", svg: `<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>` },
+    cle: { nom: "Serrure", svg: `<circle cx="12" cy="8" r="5.5"/><path d="M9.8 12h4.4l1.8 9H8z"/>` },
+    flamme: { nom: "Flamme", svg: `<path d="M12 2c1 4.2 5.5 6.2 5.5 11.2a5.5 5.5 0 0 1-11 0c0-2.2 1-3.4 2.2-4.6 0 2 1 3 2.3 3.2C10.3 8.2 10.5 5.4 12 2z"/>` },
+  };
+  const COULEURS_PION = [
+    { id: "rouge", nom: "Rouge", c: "#C0392B" },
+    { id: "or", nom: "Or", c: "#D4A017" },
+    { id: "bleu", nom: "Bleu", c: "#3F7CAC" },
+    { id: "vert", nom: "Vert", c: "#4C9A5A" },
+    { id: "violet", nom: "Violet", c: "#7E57A8" },
+    { id: "rose", nom: "Rose", c: "#D0648F" },
+    { id: "ivoire", nom: "Ivoire", c: "#F1E8D0" },
+    { id: "noir", nom: "Noir", c: "#2A2620" },
+  ];
+  function pion() {
+    try {
+      const p = JSON.parse(localStorage.getItem("seuil-pion") || "{}");
+      return { forme: FORMES_PION[p.forme] ? p.forme : "salamandre", couleur: COULEURS_PION.some((c) => c.id === p.couleur) ? p.couleur : "rouge" };
+    } catch (e) {
+      return { forme: "salamandre", couleur: "rouge" };
+    }
+  }
+  function sauverPion(x) {
+    try {
+      localStorage.setItem("seuil-pion", JSON.stringify(x));
+    } catch (e) {}
+  }
+  const couleurPion = (id) => COULEURS_PION.find((c) => c.id === id).c;
+  // Le pion en SVG (ou la salamandre, entourée de la couleur choisie)
+  function pionSVG(forme, couleur, classe) {
+    const col = couleurPion(couleur);
+    if (forme === "salamandre") return `<span class="${classe} pion-sal" style="--c:${col}"><img src="img/salamandre.png" alt="" onerror="this.remove()"></span>`;
+    return `<span class="${classe} pion-svg" style="--c:${col}"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="${col}" stroke="#2A2620" stroke-width="1.6" stroke-linejoin="round">${FORMES_PION[forme].svg}</g></svg></span>`;
+  }
+
   function paliers() {
     try {
       const p = JSON.parse(localStorage.getItem("seuil-paliers") || "{}");
@@ -2076,7 +2118,8 @@
           }
           if (cur) {
             cls += " current";
-            contenu += `<img class="pion" src="img/salamandre.png" alt="Vous" onerror="this.outerHTML='<span class=&quot;pion-point&quot;></span>'">`;
+            const pn = pion();
+            contenu += pionSVG(pn.forme, pn.couleur, "pion");
           }
         } else if (cible) {
           cls += " draft-target";
@@ -2356,6 +2399,16 @@
         <section class="paliers" aria-label="Choix du palier">
           <h2 class="paliers-titre">Palier</h2>
           <ul>${lignes}</ul>
+        </section>
+        <section class="pion-choix" aria-label="Choix du pion">
+          <h2 class="paliers-titre">Votre pion</h2>
+          <div class="pion-ligne">
+            <span class="pion-apercu">${pionSVG(pion().forme, pion().couleur, "pion-grand")}</span>
+            <div class="pion-reglages">
+              <div class="pion-formes" role="group" aria-label="Forme">${Object.keys(FORMES_PION).map((f) => `<button class="pion-btn${f === pion().forme ? " sel" : ""}" data-act="pion-forme" data-f="${f}" title="${FORMES_PION[f].nom}" aria-pressed="${f === pion().forme}">${pionSVG(f, pion().couleur, "pion-mini")}</button>`).join("")}</div>
+              <div class="pion-couleurs" role="group" aria-label="Couleur">${COULEURS_PION.map((c) => `<button class="pion-couleur${c.id === pion().couleur ? " sel" : ""}" style="--c:${c.c}" data-act="pion-couleur" data-c="${c.id}" title="${c.nom}" aria-label="${c.nom}" aria-pressed="${c.id === pion().couleur}"></button>`).join("")}</div>
+            </div>
+          </div>
         </section>
         <label class="menu-graine">
           <span>Graine (facultative)</span>
@@ -3061,6 +3114,16 @@
       case "exploits":
         modaleExploits();
         break;
+      case "pion-forme":
+        sauverPion({ forme: el.getAttribute("data-f"), couleur: pion().couleur });
+        son("clic");
+        render();
+        break;
+      case "pion-couleur":
+        sauverPion({ forme: pion().forme, couleur: el.getAttribute("data-c") });
+        son("clic");
+        render();
+        break;
       case "libre-k":
         libreK = parseInt(el.getAttribute("data-k"), 10);
         son("clic");
@@ -3362,5 +3425,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, verifierDebord, ajouterCarte, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, pion, sauverPion, FORMES_PION, COULEURS_PION, verifierDebord, ajouterCarte, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();
