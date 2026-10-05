@@ -13,25 +13,13 @@ Format : **MP3**, mono, courts, normalisés à peu près au même volume (le jeu
 - Un fichier absent ne fait aucune erreur : le jeu reste silencieux.
 - Pistes prévues plus tard (non branchées) : énigme chronométrée, urgence, boutique, victoire, défaite.
 
-## Sons à créer
+## Sons fournis (15) : tous présents
 
-| Fichier | Durée conseillée | Quand | Repli actuel |
-| --- | --- | --- | --- |
-| `paquet-dechire.mp3` | 0,6 à 1 s | On ouvre l'emballage d'un paquet de cartes (déchirure de papier ou de cellophane, léger éclat) | `page` |
-| `carte-retournee.mp3` | 0,2 à 0,3 s | Une carte du paquet se révèle (glissement de carte, « fwip ») | `page` |
-| `carte-rare.mp3` | 0,6 à 1 s | Une carte de niveau 2 ou 3 se révèle (carte + petit tintement brillant) | `carte-depliee` |
-| `enigme-ok.mp3` | 0,6 à 1 s | Énigme résolue, mot, code ou enquête trouvés (mécanisme qui cède, courte note claire) | `deblocage` |
-| `enigme-ko.mp3` | 0,5 à 0,8 s | Énigme ratée ou temps écoulé (note sourde, serrure qui résiste) | `rature` |
-| `tic.mp3` | 0,1 s | Chaque seconde des 10 dernières secondes d'une énigme (tic sec, discret) | silence |
-| `piece.mp3` | 0,3 à 0,5 s | Gain de pièces (pièce qui tinte) | silence |
-| `case-bonus.mp3` | 0,5 s | On arrive sur une case spéciale à bonus (note montante douce) | `crayon-note` |
-| `case-interdit.mp3` | 0,5 s | Case spéciale qui interdit une pose (son sec, « refusé ») | `rature` |
-| `case-malus.mp3` | 0,5 à 0,8 s | Case spéciale à malus (note descendante, inquiétante) | `rature` |
-| `pose-salle.mp3` | 0,3 s | Une salle est posée sur le plan (pierre qui se pose, petit choc) | silence |
-| `etage-fin.mp3` | 1 à 1,5 s | La Chambre d'un étage est atteinte (porte de pierre qui coulisse, accord court) | `tampon` |
-| `victoire.mp3` | 2 à 3 s | Victoire finale (thème court, solennel) | `tampon` |
-| `defaite.mp3` | 1,5 à 2 s | Défaite (pas épuisés ou impasse) (accord grave qui retombe) | `rature` |
-| `exploit.mp3` | 0,8 à 1,2 s | Un exploit est accompli (tintement de récompense, « achievement ») | `tampon` |
+`paquet-dechire`, `carte-retournee`, `carte-rare`, `enigme-ok`, `enigme-ko`, `tic`, `piece`, `case-bonus`, `case-interdit`, `case-malus`, `pose-salle`, `etage-fin`, `victoire`, `defaite`, `exploit`.
+
+Les fichiers reçus ont été retaillés (silences et queues trop longues coupés, petit fondu de fin) et ramenés à un volume de crête comparable, pour qu'aucun effet ne couvre les autres. Les originaux sont conservés chez toi. Durées finales : de 0,2 s (`tic`, un seul tic extrait du fichier d'origine qui en contenait une série) à 6,7 s (`victoire`).
+
+Les sons de repli (voir `SONS` dans `seuil.js`) ne servent plus que si un fichier est supprimé.
 
 ## Plus tard (non branchés)
 
