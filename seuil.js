@@ -99,10 +99,68 @@
   // ------------------------------------------------------------------
   // Sons : on réutilise ceux du Bureau. Un fichier absent est ignoré.
   // ------------------------------------------------------------------
-  let muet = false;
+  // Réglages (mémorisés) : tout couper, volume de la musique, volume des effets, effets visuels
+  const REGL = { muet: false, musique: 0.5, effets: 0.7, fx: true };
   try {
-    muet = localStorage.getItem("seuil-muet") === "1";
+    const r = JSON.parse(localStorage.getItem("seuil-son") || "{}");
+    if (typeof r.musique === "number") REGL.musique = Math.max(0, Math.min(1, r.musique));
+    if (typeof r.effets === "number") REGL.effets = Math.max(0, Math.min(1, r.effets));
+    if (typeof r.fx === "boolean") REGL.fx = r.fx;
+    REGL.muet = typeof r.muet === "boolean" ? r.muet : localStorage.getItem("seuil-muet") === "1";
   } catch (e) {}
+  let muet = REGL.muet;
+  function sauverReglages() {
+    REGL.muet = muet;
+    try {
+      localStorage.setItem("seuil-son", JSON.stringify(REGL));
+    } catch (e) {}
+  }
+
+  // ---- Musique de fond : une boucle sans coupure, lancée au premier geste du joueur ----
+  let musiqueEl = null;
+  let musiqueHS = false; // fichier introuvable : on n'insiste pas
+  function demarrerMusique() {
+    if (muet || REGL.musique <= 0 || musiqueHS) return;
+    try {
+      if (!musiqueEl) {
+        const test = document.createElement("audio");
+        const ogg = !!(test.canPlayType && test.canPlayType('audio/ogg; codecs="vorbis"'));
+        musiqueEl = new Audio("audio/musique-principale." + (ogg ? "ogg" : "mp3"));
+        musiqueEl.loop = true;
+        let essaiMp3 = ogg;
+        musiqueEl.addEventListener("error", () => {
+          if (essaiMp3) {
+            essaiMp3 = false;
+            musiqueEl.src = "audio/musique-principale.mp3";
+            musiqueEl.play().catch(() => {});
+          } else {
+            musiqueHS = true;
+            musiqueEl = null;
+          }
+        });
+      }
+      musiqueEl.volume = REGL.musique;
+      const pr = musiqueEl.play();
+      if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) {}
+  }
+  function majMusique() {
+    if (muet || REGL.musique <= 0) {
+      if (musiqueEl) musiqueEl.pause();
+      return;
+    }
+    if (!musiqueEl) return demarrerMusique();
+    try {
+      musiqueEl.volume = REGL.musique;
+      const pr = musiqueEl.play();
+      if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!musiqueEl) return;
+    if (document.hidden) musiqueEl.pause();
+    else majMusique();
+  });
   const sonsCache = {};
   // Sons demandés par le jeu. Valeur : le son existant joué à la place tant que le fichier n'est pas fourni (null : silence).
   const SONS = {
@@ -144,7 +202,8 @@
         sonsCache[nom] = a;
       }
       a.currentTime = 0;
-      a.volume = 0.7;
+      a.volume = REGL.effets;
+      if (REGL.effets <= 0) return;
       const p = a.play();
       if (p && p.catch) p.catch(() => {});
     } catch (e) {}
@@ -1191,6 +1250,71 @@
   }
   const prixJoker = (j) => RARETES[j.rar].prix;
 
+  // ---- Effets visuels (désactivables ; respectent « réduire les animations ») ----
+  const fxActifs = () => REGL.fx && !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  function ondeClic(x, y) {
+    if (!fxActifs()) return;
+    const o = document.createElement("span");
+    o.className = "onde";
+    o.style.left = x + "px";
+    o.style.top = y + "px";
+    document.body.appendChild(o);
+    setTimeout(() => o.remove(), 500);
+  }
+  document.addEventListener("pointerdown", (ev) => {
+    if (ev.target.closest && ev.target.closest("button, [data-act]")) ondeClic(ev.clientX, ev.clientY);
+  });
+  // Texte qui s'élève depuis un compteur (cle : data-fx de l'élément visible)
+  function flotter(texte, cle, plus) {
+    if (!fxActifs()) return;
+    const el = [...document.querySelectorAll('[data-fx="' + cle + '"]')].find((e) => e.offsetParent !== null);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const f = document.createElement("span");
+    f.className = "flottant " + (plus ? "plus" : "moins");
+    f.textContent = texte;
+    f.style.left = r.left + r.width / 2 + "px";
+    f.style.top = r.bottom + "px";
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 1100);
+  }
+  const NOMS_FX = { pas: " pas", pieces: " 🪙", des: " 🎲", sceaux: " 🗝" };
+  // Compare les compteurs à ceux du dernier affichage et fait flotter les écarts
+  function deltasAffichage() {
+    const v = { pas: G.steps, pieces: G.coins, des: G.dice, sceaux: G.seals };
+    const cle = G.seed + ":" + G.etage + ":" + (G.libre ? "l" : G.palier);
+    const prec = G.vu;
+    G.vu = Object.assign({ cle }, v);
+    if (!prec || prec.cle !== cle) return;
+    Object.keys(v).forEach((k, i) => {
+      const d = v[k] - prec[k];
+      if (d) setTimeout(() => flotter((d > 0 ? "+" : "−") + Math.abs(d) + NOMS_FX[k], k, d > 0), 40 + i * 120);
+    });
+  }
+  function confettis(n) {
+    if (!fxActifs()) return;
+    const couleurs = ["#D4A017", "#C0392B", "#3F7CAC", "#4C9A5A", "#7E57A8", "#F1E8D0"];
+    for (let i = 0; i < (n || 36); i++) {
+      const c = document.createElement("span");
+      c.className = "confetti";
+      c.style.left = Math.random() * 100 + "vw";
+      c.style.background = couleurs[i % couleurs.length];
+      c.style.animationDuration = 1.6 + Math.random() * 1.4 + "s";
+      c.style.animationDelay = Math.random() * 0.4 + "s";
+      c.style.transform = "rotate(" + Math.random() * 360 + "deg)";
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 3600);
+    }
+  }
+  // Une énigme résolue éclaire la fenêtre ; une énigme ratée la secoue
+  function fxResultat(ok) {
+    if (!fxActifs()) return;
+    const b = document.querySelector("#modal .modal-boite");
+    if (!b) return;
+    b.classList.add(ok ? "fx-ok" : "fx-ko");
+    if (ok) confettis(18);
+  }
+
   function toast(msg) {
     let pile = document.getElementById("toasts");
     if (!pile) {
@@ -1708,7 +1832,7 @@
     if (cand.interdit) return interditIci(cand);
     son("pose-salle");
     G.envs.forEach((e) => (e.posee = true)); // la prochaine salle est posée : ces effets s'éteindront après le pas qui y entre
-    G.grid[D.tr][D.tc] = { tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme, card: cand.card };
+    G.grid[D.tr][D.tc] = { fraiche: true, tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme, card: cand.card };
     defausserMain(D.cands); // les trois cartes tirées vont à la défausse
     G.rooms += 1;
     if (aJoker("craie") && cand.theme) {
@@ -1798,6 +1922,7 @@
     log("Étage " + G.etage + " terminé : la Chambre est atteinte avec " + G.steps + " pas restants.");
     controler("etage");
     son("etage-fin");
+    confettis(28);
     fermerModale();
     render();
     afficherModale(`
@@ -1838,6 +1963,7 @@
         sauverPaliers(P);
       }
       son("victoire");
+      confettis(60);
     } else {
       son("defaite");
     }
@@ -1942,6 +2068,7 @@
       son("enigme-ko");
     }
     modaleResultat(ok, message);
+    fxResultat(ok);
     render();
   }
 
@@ -2112,6 +2239,10 @@
           const cotes = [0, 1, 2, 3].map((k) => coteEtat(r, c, k));
           contenu = salleSVG(room.tpl, cotes, { nom: room.tpl.court, theme: room.theme });
           cls += " placed" + (room.visited ? "" : " unseen") + (room.goal ? " goal" : "");
+          if (room.fraiche) {
+            cls += " pose";
+            setTimeout(() => (room.fraiche = false), 700);
+          }
           if (room.fixe && !room.goal && room.tpl !== HALL) {
             cls += " fixe";
             contenu += `<span class="pin" title="Salle fixe : elle ne bouge jamais">📌</span>`;
@@ -2271,12 +2402,12 @@
     let h = `<div class="hud">
       <div class="hud-steps${bas ? " bas" : ""}">
         <span class="hud-label">Pas restants</span>
-        <span class="hud-big">${G.steps}</span>
+        <span class="hud-big" data-fx="pas">${G.steps}</span>
         <span class="bar"><span style="width:${pct}%"></span></span>
       </div>
       <div class="hud-items">
-        <span class="chip" title="Dés : relancer un tirage de trois salles">🎲 <b>${G.dice}</b> <em>dé${G.dice > 1 ? "s" : ""}</em></span>
-        <span class="chip" title="Sceaux : ouvrent une porte sans énigme">🗝 <b>${G.seals}</b> <em>sceau${G.seals > 1 ? "x" : ""}</em></span>
+        <span class="chip" data-fx="des" title="Dés : relancer un tirage de trois salles">🎲 <b>${G.dice}</b> <em>dé${G.dice > 1 ? "s" : ""}</em></span>
+        <span class="chip" data-fx="sceaux" title="Sceaux : ouvrent une porte sans énigme">🗝 <b>${G.seals}</b> <em>sceau${G.seals > 1 ? "x" : ""}</em></span>
         <span class="chip" title="Temps bonus sur chaque énigme">⏳ <b>+${bonusTemps()}</b> <em>s</em></span>
       </div>
       ${G.regles.gemmes ? `<div class="hud-items">${gemmesHTML()}</div>` : ""}
@@ -2308,6 +2439,7 @@
 
   function render() {
     if (G && !G.over) controler("tick");
+    if (G) deltasAffichage();
     const app = document.getElementById("app");
     document.body.classList.toggle("menu-mode", !G);
     document.body.classList.toggle("tirage-ouvert", !!(G && G.draft));
@@ -2317,7 +2449,7 @@
         <div class="titre-mini"><span class="marque">Bureau des affaires occultes</span><h1>SEUIL</h1><span class="palier-tag">${G.libre ? "Mode libre · " + G.libre.k + " règle" + (G.libre.k > 1 ? "s" : "") : "Palier " + G.palier + " · " + esc(palierDe(G.palier).nom)}</span></div>
         <div class="entete-btns">
           <button class="petit" data-act="rules" title="Règles">?</button>
-          <button class="petit" data-act="sound" title="Son">${muet ? "🔇" : "🔊"}</button>
+          <button class="petit" data-act="sound" title="Son et effets">${muet || REGL.musique + REGL.effets === 0 ? "🔇" : "🔊"}</button>
           <button class="petit texte" data-act="menu">Menu</button>
         </div>
       </header>
@@ -2365,13 +2497,13 @@
 
   function deckChip() {
     const enMain = G.draft ? G.draft.cands.filter((c) => !c.card.temp).length : 0;
-    return `<span class="chip" title="Pièces">🪙 <b>${G.coins}</b></span><button class="chip deck-btn" data-act="deck" title="Voir le deck">🃏 <b>${G.deck.length}/${plafondDeck()}</b> <em>pioche ${G.pioche.length} · défausse ${G.defausse.length}${enMain ? " · main " + enMain : ""}</em></button>`;
+    return `<span class="chip" data-fx="pieces" title="Pièces">🪙 <b>${G.coins}</b></span><button class="chip deck-btn" data-act="deck" title="Voir le deck">🃏 <b>${G.deck.length}/${plafondDeck()}</b> <em>pioche ${G.pioche.length} · défausse ${G.defausse.length}${enMain ? " · main " + enMain : ""}</em></button>`;
   }
 
   function hudMobile() {
     const bas = G.steps <= 10;
-    return `<span class="hm-steps${bas ? " bas" : ""}"><b>${G.steps}</b> pas</span>
-      <span class="chip">🎲 <b>${G.dice}</b></span><span class="chip">🗝 <b>${G.seals}</b></span><span class="chip">⏳ <b>+${bonusTemps()}</b></span>
+    return `<span class="hm-steps${bas ? " bas" : ""}" data-fx="pas"><b>${G.steps}</b> pas</span>
+      <span class="chip" data-fx="des">🎲 <b>${G.dice}</b></span><span class="chip" data-fx="sceaux">🗝 <b>${G.seals}</b></span><span class="chip">⏳ <b>+${bonusTemps()}</b></span>
       <span class="chip">📜 <b>${G.fragments}/${FRAGMENTS.length}</b></span>${deckChip()}${G.gems.length ? gemmesHTML() : ""}${G.jokers.map((id) => `<button class="chip joker-chip" data-act="joker" data-id="${id}" title="${esc(JOKERS_PAR_ID[id].nom)}">${JOKERS_PAR_ID[id].icone}</button>`).join("")}`;
   }
 
@@ -2392,6 +2524,7 @@
     return `<div class="menu">
       <div class="menu-fond"><img src="img/menu-fond.jpg" alt="" onerror="this.remove()"></div>
       <div class="menu-inner">
+        <button class="menu-son" data-act="sound" title="Son et effets" aria-label="Son et effets">${muet ? "🔇" : "🔊"}</button>
         <p class="menu-marque">Bureau des affaires occultes</p>
         <img class="menu-sal" src="img/salamandre.png" alt="" onerror="this.remove()">
         <h1 class="menu-titre">SEUIL</h1>
@@ -3010,6 +3143,46 @@
     }
   }
 
+  function modaleSon() {
+    afficherModale(`
+      <p class="modal-sur">Réglages</p>
+      <h2>Son et effets</h2>
+      <label class="son-ligne"><input type="checkbox" id="son-muet"${muet ? " checked" : ""}> <span>Couper tout le son</span></label>
+      <label class="son-ligne son-curseur"><span>🎵 Musique</span><input type="range" id="vol-musique" min="0" max="100" value="${Math.round(REGL.musique * 100)}" aria-label="Volume de la musique"><output id="val-musique">${Math.round(REGL.musique * 100)}</output></label>
+      <label class="son-ligne son-curseur"><span>🔔 Effets sonores</span><input type="range" id="vol-effets" min="0" max="100" value="${Math.round(REGL.effets * 100)}" aria-label="Volume des effets"><output id="val-effets">${Math.round(REGL.effets * 100)}</output></label>
+      <label class="son-ligne"><input type="checkbox" id="son-fx"${REGL.fx ? " checked" : ""}> <span>Effets visuels (éclats, gains qui flottent, confettis)</span></label>
+      <p class="note-deck">Sur certains téléphones (iPhone), le volume se règle avec les boutons de l'appareil.</p>
+      <div class="boutons"><button class="btn principal" data-act="close">Fermer</button></div>`, "regle-modal son-modal");
+  }
+  document.addEventListener("input", (ev) => {
+    const t = ev.target;
+    if (t.id === "vol-musique") {
+      REGL.musique = parseInt(t.value, 10) / 100;
+      const o = document.getElementById("val-musique");
+      if (o) o.textContent = t.value;
+      sauverReglages();
+      majMusique();
+    } else if (t.id === "vol-effets") {
+      REGL.effets = parseInt(t.value, 10) / 100;
+      const o = document.getElementById("val-effets");
+      if (o) o.textContent = t.value;
+      sauverReglages();
+    }
+  });
+  document.addEventListener("change", (ev) => {
+    const t = ev.target;
+    if (t.id === "son-muet") {
+      muet = t.checked;
+      sauverReglages();
+      majMusique();
+      render();
+      if (!muet) son("clic");
+    } else if (t.id === "son-fx") {
+      REGL.fx = t.checked;
+      sauverReglages();
+    } else if (t.id === "vol-effets") son("clic"); // aperçu du volume une fois le curseur relâché
+  });
+
   function modaleDeck() {
     const enMain = new Set(G.draft ? G.draft.cands.map((c) => c.card.uid) : []);
     const dansPioche = new Set(G.pioche.map((c) => c.uid));
@@ -3070,6 +3243,7 @@
   // Événements
   // ------------------------------------------------------------------
   document.addEventListener("click", (ev) => {
+    demarrerMusique(); // les navigateurs n'autorisent la musique qu'après un geste du joueur
     const el = ev.target.closest("[data-act]");
     if (!el) return;
     const act = el.getAttribute("data-act");
@@ -3272,11 +3446,7 @@
         fermerModale();
         break;
       case "sound":
-        muet = !muet;
-        try {
-          localStorage.setItem("seuil-muet", muet ? "1" : "0");
-        } catch (e) {}
-        render();
+        modaleSon();
         break;
       case "go":
         tenter(parseInt(el.getAttribute("data-d"), 10));
@@ -3425,5 +3595,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, pion, sauverPion, FORMES_PION, COULEURS_PION, verifierDebord, ajouterCarte, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, REGL, majMusique, demarrerMusique, modaleSon, fxActifs, flotter, confettis, pion, sauverPion, FORMES_PION, COULEURS_PION, verifierDebord, ajouterCarte, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

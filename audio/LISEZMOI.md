@@ -6,6 +6,13 @@ Format : **MP3**, mono, courts, normalisés à peu près au même volume (le jeu
 
 `clic`, `page`, `page-journal`, `tampon`, `punaise`, `rature`, `deblocage`, `crayon-note`, `carte-depliee`.
 
+## Musique
+
+- `musique-principale.ogg` et `musique-principale.mp3` : thème principal du jeu, mis en boucle sans coupure (les 5 dernières secondes de l'original, qui se termine en fondu, sont fondues avec les 5 premières). Le jeu lit l'OGG si le navigateur le permet, sinon le MP3.
+- Le morceau se lance au premier geste du joueur (règle des navigateurs), se met en pause quand l'onglet est caché, et se règle dans « Son et effets ».
+- Un fichier absent ne fait aucune erreur : le jeu reste silencieux.
+- Pistes prévues plus tard (non branchées) : énigme chronométrée, urgence, boutique, victoire, défaite.
+
 ## Sons à créer
 
 | Fichier | Durée conseillée | Quand | Repli actuel |

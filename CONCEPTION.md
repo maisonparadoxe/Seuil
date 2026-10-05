@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Musique de fond, réglages du son et effets visuels, faits** (voir plus bas).
 - **Pion personnalisable (forme et couleur), fait** (voir plus bas).
 - **Débordement du deck avec écran de défausse, fait** (voir plus bas).
 - **Thème Mémoire (Memory), fait** (voir plus bas). L'idée « Oreille » est écartée pour l'instant : elle fera peut-être l'objet d'un jeu dédié.
@@ -345,6 +346,15 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 - **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
+
+### Musique, réglages du son et effets visuels (faits)
+
+- **Musique.** Le thème principal (`audio/musique-principale.ogg` et `.mp3`) joue en boucle sans coupure. Il démarre au premier clic, se met en pause quand l'onglet est caché, reprend au retour.
+- **Réglages.** Le bouton 🔊 (en jeu et dans le menu) ouvre « Son et effets » : couper tout le son, volume de la musique, volume des effets sonores, effets visuels. Tout est sauvegardé (`seuil-son`). Sur iPhone, le volume des éléments audio dépend de l'appareil.
+- **Effets visuels.** Onde au toucher d'un bouton ; valeurs qui flottent près des compteurs (pas, pièces, dés, sceaux) à chaque gain ou perte ; lueur verte et confettis quand une énigme est résolue ; secousse rouge quand elle est ratée ; rebond d'une salle qu'on vient de poser ; pulsation d'une paire trouvée au Memory ; confettis en fin d'étage et en victoire. Désactivables, et ignorés si le téléphone demande de réduire les animations.
+- **Mesures.** Un changement d'étage ou de partie ne déclenche pas de valeurs flottantes.
+
+Vérifié par des tests automatiques (audio simulé) : aucune musique avant le premier geste, boucle, volume, mute, 0 %, rechargement, repli MP3, volume des effets appliqué, ondes, valeurs flottantes, lueur et secousse, effets désactivés, réduction des animations ; et toutes les anciennes suites.
 
 ### Le pion personnalisable (fait)
 

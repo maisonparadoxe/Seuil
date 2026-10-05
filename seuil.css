@@ -593,3 +593,29 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .pion-mini.pion-sal img { width: 100%; height: 100%; object-fit: contain; }
 .pion-couleur { width: 26px; height: 26px; border-radius: 50%; background: var(--c); border: 2px solid rgba(0, 0, 0, 0.5); cursor: pointer; padding: 0; }
 .pion-couleur.sel { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--stamp-red); }
+
+/* Son et effets visuels */
+.menu-son { position: absolute; top: 10px; right: 10px; z-index: 5; font-size: 20px; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.45); color: #fff; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 50%; cursor: pointer; }
+.menu-inner { position: relative; }
+.son-ligne { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-size: 15px; }
+.son-ligne input[type="checkbox"] { width: 20px; height: 20px; }
+.son-curseur { display: grid; grid-template-columns: 130px 1fr 34px; gap: 8px; }
+.son-curseur input[type="range"] { width: 100%; accent-color: var(--stamp-red); }
+.son-curseur output { font-family: var(--font-mono); font-size: 12px; text-align: right; }
+.onde { position: fixed; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2px solid var(--gold); pointer-events: none; z-index: 9999; animation: onde 0.45s ease-out forwards; }
+@keyframes onde { from { transform: scale(0.4); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
+.flottant { position: fixed; z-index: 9999; pointer-events: none; font-family: var(--font-mono); font-weight: 700; font-size: 18px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); animation: flotte 1.05s ease-out forwards; white-space: nowrap; }
+.flottant.plus { color: #8BE08B; }
+.flottant.moins { color: #FF8070; }
+@keyframes flotte { 0% { opacity: 0; transform: translate(-50%, 0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -48px); } }
+.cell.pose { animation: pose 0.5s ease-out; }
+@keyframes pose { 0% { transform: scale(0.6); filter: brightness(1.7); } 60% { transform: scale(1.08); } 100% { transform: none; filter: none; } }
+.modal-boite.fx-ok { animation: lueurOk 0.8s ease-out; }
+@keyframes lueurOk { 0% { box-shadow: 0 0 0 0 rgba(120, 220, 120, 0); } 30% { box-shadow: 0 0 40px 8px rgba(120, 220, 120, 0.85); } 100% { box-shadow: 0 0 0 0 rgba(120, 220, 120, 0); } }
+.modal-boite.fx-ko { animation: secousse 0.45s; }
+@keyframes secousse { 0%, 100% { transform: translateX(0); box-shadow: 0 0 0 0 rgba(200, 60, 50, 0); } 15% { transform: translateX(-9px); box-shadow: 0 0 30px 6px rgba(200, 60, 50, 0.7); } 35% { transform: translateX(8px); } 55% { transform: translateX(-6px); } 75% { transform: translateX(4px); } }
+.confetti { position: fixed; top: -14px; width: 8px; height: 13px; z-index: 9999; pointer-events: none; animation: tombe linear forwards; }
+@keyframes tombe { to { top: 105vh; margin-left: 40px; opacity: 0.9; } }
+.mem-carte.trouve { animation: trouve 0.45s ease-out; }
+@keyframes trouve { 0% { transform: scale(1); } 40% { transform: scale(1.14); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .onde, .flottant, .confetti { display: none; } .cell.pose, .modal-boite.fx-ok, .modal-boite.fx-ko, .mem-carte.trouve { animation: none; } }
