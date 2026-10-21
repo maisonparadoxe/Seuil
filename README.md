@@ -4,7 +4,7 @@ Le labyrinthe des Gardiens : un jeu de navigateur où l'on pose des salles comme
 
 ## Jouer
 
-- **En ligne** : activez GitHub Pages sur ce dépôt (Settings → Pages → Branch `main`, dossier `/ (root)`). Le jeu est alors à l'adresse `https://<compte>.github.io/Seuil/`. Sur téléphone, ouvrez cette adresse et ajoutez-la à l'écran d'accueil.
+- **En ligne** : https://maisonparadoxe.github.io/Seuil/ (publié automatiquement par GitHub Pages à chaque mise à jour de la branche `main`). Sur téléphone, ouvrez cette adresse et ajoutez-la à l'écran d'accueil.
 - **Hors ligne** : ouvrez `index.html` dans un navigateur (double-clic). Aucun serveur, aucune installation, aucune dépendance.
 
 Les progrès (paliers, exploits, joker fétiche, pion, réglages du son) sont enregistrés dans le navigateur, sur l'appareil utilisé.
