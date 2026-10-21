@@ -1,6 +1,6 @@
 # SEUIL
 
-Le labyrinthe des Gardiens : un jeu de navigateur où l'on pose des salles comme des cartes, où chaque porte est scellée par une énigme chronométrée, et où chaque pas est compté. Un jeu Maison Paradoxe, dans l'univers du Bureau des affaires occultes.
+Le labyrinthe des Gardiens : un jeu de navigateur où l'on pose des salles comme des cartes, où chaque porte est scellée par une énigme chronométrée, et où chaque pas est compté. Un jeu Maison Paradoxe.
 
 ## Jouer
 
@@ -35,4 +35,4 @@ La conception complète, les décisions et l'état d'avancement sont dans `CONCE
 
 ## Crédits
 
-Concept, direction et musique principale : Maison Paradoxe. Développement : Claude (Anthropic), avec le créateur du jeu. Les polices viennent du Bureau des affaires occultes.
+Concept, direction et musique principale : Maison Paradoxe. Développement : Claude (Anthropic), avec le créateur du jeu.

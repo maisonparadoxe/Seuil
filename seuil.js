@@ -97,7 +97,7 @@
     String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
   // ------------------------------------------------------------------
-  // Sons : on réutilise ceux du Bureau. Un fichier absent est ignoré.
+  // Sons : un fichier absent est ignoré.
   // ------------------------------------------------------------------
   // Réglages (mémorisés) : tout couper, volume de la musique, volume des effets, effets visuels
   const REGL = { muet: false, musique: 0.5, effets: 0.7, fx: true };
@@ -522,9 +522,9 @@
   function pion() {
     try {
       const p = JSON.parse(localStorage.getItem("seuil-pion") || "{}");
-      return { forme: FORMES_PION[p.forme] ? p.forme : "salamandre", couleur: COULEURS_PION.some((c) => c.id === p.couleur) ? p.couleur : "rouge" };
+      return { forme: FORMES_PION[p.forme] ? p.forme : "losange", couleur: COULEURS_PION.some((c) => c.id === p.couleur) ? p.couleur : "rouge" };
     } catch (e) {
-      return { forme: "salamandre", couleur: "rouge" };
+      return { forme: "losange", couleur: "rouge" };
     }
   }
   function sauverPion(x) {
@@ -2201,7 +2201,7 @@
 
   function iconeDe(tpl) {
     if (tpl.kind === "start") return "🚪";
-    if (tpl.kind === "goal") return "🦎";
+    if (tpl.kind === "goal") return "🏁";
     const fx = tpl.fx || {};
     const parts = [];
     if (fx.steps) parts.push((fx.steps > 0 ? "+" : "−") + Math.abs(fx.steps));
@@ -2542,7 +2542,7 @@
     if (!G) return (app.innerHTML = menuHTML());
     app.innerHTML = `
       <header class="entete">
-        <div class="titre-mini"><span class="marque">Bureau des affaires occultes</span><h1>SEUIL</h1><span class="palier-tag">${G.libre ? "Mode libre · " + G.libre.k + " règle" + (G.libre.k > 1 ? "s" : "") : "Palier " + G.palier + " · " + esc(palierDe(G.palier).nom)}</span></div>
+        <div class="titre-mini"><span class="marque">Maison Paradoxe</span><h1>SEUIL</h1><span class="palier-tag">${G.libre ? "Mode libre · " + G.libre.k + " règle" + (G.libre.k > 1 ? "s" : "") : "Palier " + G.palier + " · " + esc(palierDe(G.palier).nom)}</span></div>
         <div class="entete-btns">
           <button class="petit" data-act="rules" title="Règles">?</button>
           <button class="petit" data-act="sound" title="Son et effets">${muet || REGL.musique + REGL.effets === 0 ? "🔇" : "🔊"}</button>
@@ -2621,10 +2621,14 @@
       <div class="menu-fond"><img src="img/menu-fond.jpg" alt="" onerror="this.remove()"></div>
       <div class="menu-inner">
         <button class="menu-son" data-act="sound" title="Son et effets" aria-label="Son et effets">${muet ? "🔇" : "🔊"}</button>
-        <p class="menu-marque">Bureau des affaires occultes</p>
-        <img class="menu-sal" src="img/salamandre.png" alt="" onerror="this.remove()">
+        <svg class="menu-logo" viewBox="0 0 64 72" aria-hidden="true"><g fill="none" stroke="#E9DFC0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 68V30a24 24 0 0 1 48 0v38z"/><path d="M18 68V32a14 14 0 0 1 28 0v36" stroke-width="2" opacity="0.7"/></g><circle cx="32" cy="38" r="4.5" fill="#E9DFC0"/><path d="M30 41h4l1.5 12h-7z" fill="#E9DFC0"/></svg>
         <h1 class="menu-titre">SEUIL</h1>
-        <p class="menu-tag">Le labyrinthe des Gardiens. Chaque porte est une question. Chaque réponse ouvre un chemin, et le chemin se paie en pas.</p>
+        <p class="menu-tag">Un jeu de cartes et d'énigmes. Posez des salles pour bâtir un labyrinthe, résolvez l'énigme de chaque porte et rejoignez la sortie avant d'être à court de pas.</p>
+        <ol class="menu-etapes">
+          <li><b>Ouvrez une porte</b> en résolvant son énigme.</li>
+          <li><b>Choisissez une salle</b> parmi trois cartes de votre deck.</li>
+          <li><b>Atteignez la sortie</b> avant la fin de vos pas.</li>
+        </ol>
         <section class="paliers" aria-label="Choix du palier">
           <h2 class="paliers-titre">Palier</h2>
           <ul>${lignes}</ul>
