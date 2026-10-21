@@ -619,3 +619,21 @@ button.joker:hover { border-color: var(--stamp-red); border-left-color: var(--r,
 .mem-carte.trouve { animation: trouve 0.45s ease-out; }
 @keyframes trouve { 0% { transform: scale(1); } 40% { transform: scale(1.14); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .onde, .flottant, .confetti { display: none; } .cell.pose, .modal-boite.fx-ok, .modal-boite.fx-ko, .mem-carte.trouve { animation: none; } }
+
+/* Pose lourde, portails, gemmes */
+.fumee { position: fixed; z-index: 9998; pointer-events: none; border-radius: 50%; background: radial-gradient(circle, rgba(225, 215, 195, 0.85) 0%, rgba(170, 160, 140, 0.55) 55%, rgba(120, 110, 95, 0) 72%); animation: fume 1.2s ease-out forwards; }
+@keyframes fume { 0% { opacity: 0.9; transform: translate(0, 0) scale(0.5); } 100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -50px)) scale(1.9); } }
+.board.secousse { animation: secBoard 0.45s ease-out; }
+.board.secousse-forte { animation: secBoardF 0.5s ease-out; }
+@keyframes secBoard { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-2px, 2px); } 45% { transform: translate(2px, -1px); } 70% { transform: translate(-1px, 1px); } }
+@keyframes secBoardF { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(-5px, 4px); } 35% { transform: translate(5px, -3px); } 55% { transform: translate(-3px, 3px); } 75% { transform: translate(2px, -2px); } }
+.cell.can-portail { cursor: pointer; outline: 3px solid #7E57A8; outline-offset: -3px; animation: pulsePortail 1.4s ease-in-out infinite; }
+@keyframes pulsePortail { 0%, 100% { box-shadow: 0 0 0 0 rgba(126, 87, 168, 0); } 50% { box-shadow: 0 0 16px 2px rgba(126, 87, 168, 0.85); } }
+.cell.portail-fx { animation: flashPortail 0.9s ease-out; }
+@keyframes flashPortail { 0% { filter: brightness(2) hue-rotate(40deg); } 100% { filter: none; } }
+body.portail-flash::after { content: ""; position: fixed; inset: 0; z-index: 9990; pointer-events: none; background: radial-gradient(circle, rgba(126, 87, 168, 0) 30%, rgba(126, 87, 168, 0.55) 100%); animation: fondPortail 0.5s ease-out forwards; }
+@keyframes fondPortail { from { opacity: 1; } to { opacity: 0; } }
+.portail-carte h3 { color: #7E57A8; }
+.gem-btn.dispo:not(.actif) { animation: pulseGem 1.8s ease-in-out infinite; }
+@keyframes pulseGem { 0%, 100% { box-shadow: 0 0 0 0 rgba(185, 139, 42, 0); } 50% { box-shadow: 0 0 10px 2px rgba(185, 139, 42, 0.8); } }
+@media (prefers-reduced-motion: reduce) { .fumee, body.portail-flash::after { display: none; } .board.secousse, .board.secousse-forte, .cell.can-portail, .cell.portail-fx, .gem-btn.dispo { animation: none; } }

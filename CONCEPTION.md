@@ -199,6 +199,7 @@ Le bonus de voisinage, qui était une étape à part, a été supprimé en tant 
 
 ## 5 bis. Avancement
 
+- **Pose lourde, portails et gemmes mieux signalées, faits** (voir plus bas). Le jeu est considéré comme terminé pour sa version 1.0 ; la suite relève de l'équilibrage en jouant.
 - **Musique de fond, réglages du son et effets visuels, faits** (voir plus bas).
 - **Pion personnalisable (forme et couleur), fait** (voir plus bas).
 - **Débordement du deck avec écran de défausse, fait** (voir plus bas).
@@ -346,6 +347,15 @@ Vérifié par des tests automatiques : verrouillage tant que tout n'est pas déb
 - **À régler en jouant.** La pénalité (6 pas), la durée (120 s) et la taille de la liste de mots.
 
 Vérifié par des tests automatiques : notation (doublons compris), liste valide, annonce à la dernière porte seulement, clavier virtuel et physique, victoire, échec avec −6 pas et porte verrouillée, nouveau mot au nouvel essai, partie perdue sous 6 pas ; et toutes les anciennes suites.
+
+### Pose lourde, portails et gemmes (faits)
+
+- **Effets de pose selon le poids.** Une salle qu'on pose soulève de la poussière : 5 volutes pour le niveau 0, 8 pour le niveau 1, 14 (et une secousse du plan) pour le niveau 2 et les pièges, 22 (secousse forte) pour le niveau 3. Le son suit : `pose-salle`, puis `pose-lourde` et `pose-tres-lourde` (à fournir ; en attendant, repli sur `pose-salle`). Désactivable avec les effets visuels.
+- **Salle du portail** (niveau 2, 2 exemplaires au plus, trois sorties). Debout dans une salle portail, on touche une autre salle portail du plan (cadre violet pulsant) pour la rejoindre pour 1 pas ; ça respecte le passe libre et déclenche une case spéciale à l'arrivée. Un seul portail ne sert à rien : un message l'indique. Un portail utilisable empêche l'impasse. Effet visuel (éclair violet) et son `portail` (à fournir ; repli sur `page`).
+- **Gemmes mieux signalées.** À l'obtention, une bulle explique comment l'utiliser ; une gemme utilisable pulse dans le panneau.
+- **Décision de conception (déléguée).** Les entresols (plusieurs couches par étage) sont écartés : trop lourd pour le téléphone. Les portails par paires donnent déjà le choix de raccourcis.
+
+Vérifié par des tests automatiques : niveau et apparition du portail, traversée (coût, retour, passe libre, case spéciale, fin de partie), cadre et carte d'aide, fumée croissante avec le niveau, secousses, repli des sons, effets désactivés ; et toutes les anciennes suites.
 
 ### Musique, réglages du son et effets visuels (faits)
 

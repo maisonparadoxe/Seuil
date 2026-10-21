@@ -178,6 +178,9 @@
     "case-interdit": "rature",
     "case-malus": "rature",
     "pose-salle": null,
+    "pose-lourde": "pose-salle", // impact sourd d'une salle de niveau 2 ou d'un piège
+    "pose-tres-lourde": "pose-lourde", // salle de niveau 3
+    portail: "page", // traversée d'un portail
     "etage-fin": "tampon",
     victoire: "tampon",
     defaite: "rature",
@@ -237,6 +240,7 @@
     { id: "fresque", nom: "Fresque des Gardiens", court: "Fresque", doors: ["L", "R"], w: 3, max: 2, kind: "bonus", fx: { fragment: 1 }, desc: "Des silhouettes en capuche gardent une porte. L'une d'elles tient une salamandre." },
     { id: "cabinet", nom: "Cabinet du serrurier", court: "Cabinet", doors: ["F"], w: 2, max: 1, kind: "bonus", fx: { fragment: 1, steps: 3 }, desc: "Un bureau encombré de pênes et de ressorts. Quelqu'un a travaillé ici." },
     { id: "lames", nom: "Salle des lames", court: "Lames", doors: ["F", "L"], mirror: true, w: 3, max: 2, kind: "trap", fx: { steps: -5 }, desc: "Des lames sortent du mur au moindre pas. Vous vous en tirez, mais pas gratuitement." },
+    { id: "portail", nom: "Salle du portail", court: "Portail", doors: ["F", "L"], mirror: true, w: 3, max: 2, kind: "bonus", fx: { portail: true }, desc: "Un arc de pierre où l'air vibre. Quelque part dans le labyrinthe, il en existe un jumeau." },
     { id: "tresorerie", nom: "Trésorerie des Gardiens", court: "Trésor", doors: [], w: 2, max: 1, kind: "bonus", fx: { coins: 8 }, desc: "Un coffre ouvert, des pièces d'un autre siècle. Un cul-de-sac." },
     { id: "autel", nom: "Autel du seuil", court: "Autel", doors: ["F"], w: 2, max: 1, kind: "bonus", fx: { steps: 6, dice: 1, seals: 1 }, desc: "Une offrande y attend celui qui a su venir jusqu'ici." },
     { id: "miroirs", nom: "Salle des miroirs", court: "Miroirs", doors: ["F", "L", "R"], mirror: true, w: 2, max: 1, kind: "bonus", fx: { steps: 4 }, desc: "Cent reflets, trois issues. L'un des reflets vous précède." },
@@ -246,7 +250,7 @@
   const NIVEAU_SALLE = {
     galerie: 0, coude: 0, fourche: 0, te: 0,
     croisee: 1, cellier: 1, refectoire: 1, boutique: 1, archives: 1, cristallerie: 1, cave: 1,
-    reliquaire: 2, forge: 2, sablier: 2, fresque: 2, cabinet: 2, engrenages: 2, vents: 2,
+    portail: 2, reliquaire: 2, forge: 2, sablier: 2, fresque: 2, cabinet: 2, engrenages: 2, vents: 2,
     puits: 3, sanctuaire: 3, tresorerie: 3, autel: 3, miroirs: 3,
   };
   SALLES.forEach((t) => (t.niv = NIVEAU_SALLE[t.id] || 0));
@@ -1315,6 +1319,34 @@
     if (ok) confettis(18);
   }
 
+  // Une salle qui se pose soulève de la poussière ; plus elle est lourde (niveau), plus c'est fort
+  function fxPose(r, c, niv, kind) {
+    if (!fxActifs()) return;
+    const cell = document.querySelector('[data-cell="' + r + "," + c + '"]');
+    if (!cell) return;
+    const rc = cell.getBoundingClientRect();
+    const n = kind === "trap" ? 14 : [5, 8, 14, 22][niv] || 5;
+    for (let i = 0; i < n; i++) {
+      const f = document.createElement("span");
+      const taille = (14 + Math.random() * 20) * (1 + niv * 0.22);
+      f.className = "fumee";
+      f.style.width = f.style.height = taille + "px";
+      f.style.left = rc.left + rc.width * (0.2 + Math.random() * 0.6) - taille / 2 + "px";
+      f.style.top = rc.top + rc.height * (0.55 + Math.random() * 0.35) - taille / 2 + "px";
+      f.style.setProperty("--dx", (Math.random() - 0.5) * (50 + niv * 25) + "px");
+      f.style.setProperty("--dy", -(30 + Math.random() * (40 + niv * 20)) + "px");
+      f.style.animationDuration = 0.9 + Math.random() * 0.8 + niv * 0.15 + "s";
+      document.body.appendChild(f);
+      setTimeout(() => f.remove(), 2200);
+    }
+    const board = document.querySelector(".board");
+    if (board && (niv >= 2 || kind === "trap")) {
+      const cl = niv >= 3 ? "secousse-forte" : "secousse";
+      board.classList.add(cl);
+      setTimeout(() => board.classList.remove(cl), 480);
+    }
+  }
+
   function toast(msg) {
     let pile = document.getElementById("toasts");
     if (!pile) {
@@ -1746,6 +1778,59 @@
     son("case-" + ENVIRONNEMENTS[sp.id].cat);
   }
 
+  // ---- Portails : deux salles portail se rejoignent pour 1 pas ----
+  const enPortail = () => {
+    const r = G.grid[G.pos.r][G.pos.c];
+    return !!r && r.tpl.id === "portail";
+  };
+  function portailsAutres(r0, c0) {
+    const out = [];
+    const r1 = r0 === undefined ? G.pos.r : r0, c1 = c0 === undefined ? G.pos.c : c0;
+    G.grid.forEach((ligne, r) => ligne.forEach((x, c) => { if (x && x.tpl.id === "portail" && !(r === r1 && c === c1)) out.push({ r, c }); }));
+    return out;
+  }
+  function traverserPortail(r2, c2) {
+    if (!G || G.over || G.shift || G.draft || modalOpen() || !enPortail()) return;
+    const cible = G.grid[r2] && G.grid[r2][c2];
+    if (!cible || cible.tpl.id !== "portail" || (r2 === G.pos.r && c2 === G.pos.c)) return;
+    const passeLibre = G.envs.find((e) => e.id === "passe_libre");
+    let cout = 1;
+    if (passeLibre) {
+      cout = 0;
+      G.envs.splice(G.envs.indexOf(passeLibre), 1);
+      toast(ENVIRONNEMENTS.passe_libre.icone + " Passe libre : ce passage ne coûte rien");
+    }
+    const depart = { r: G.pos.r, c: G.pos.c };
+    G.steps -= cout;
+    G.moves += 1;
+    G.pos = { r: r2, c: c2 };
+    G.envs = G.envs.filter((e) => !e.posee);
+    son("portail");
+    log("🌀 Vous traversez le portail : de la salle (" + (depart.r + 1) + "," + (depart.c + 1) + ") à la salle (" + (r2 + 1) + "," + (c2 + 1) + ")" + (cout ? ", 1 pas" : "") + ".");
+    const sp = G.speciales[r2 + "," + c2];
+    if (sp && !sp.declenche) arriveeSpeciale(sp);
+    if (G.steps <= 0) return finir("steps");
+    render();
+    fxPortail(depart, { r: r2, c: c2 });
+  }
+  function fxPortail(a, b) {
+    if (!fxActifs()) return;
+    document.body.classList.add("portail-flash");
+    setTimeout(() => document.body.classList.remove("portail-flash"), 500);
+    [a, b].forEach((x) => {
+      const cell = document.querySelector('[data-cell="' + x.r + "," + x.c + '"]');
+      if (cell) {
+        cell.classList.add("portail-fx");
+        setTimeout(() => cell.classList.remove("portail-fx"), 900);
+      }
+    });
+  }
+  function portailHTML() {
+    if (!enPortail()) return "";
+    const n = portailsAutres().length;
+    return `<section class="carte portail-carte"><h3>🌀 Portail</h3>${n ? `<p>Touchez une autre salle portail du plan (cadre violet) pour la rejoindre : 1 pas. ${n} jumeau${n > 1 ? "x" : ""} disponible${n > 1 ? "s" : ""}.</p>` : `<p class="vide">Aucun portail jumeau pour l'instant. Posez une seconde salle du portail pour relier les deux.</p>`}</section>`;
+  }
+
   function deplacer(d) {
     const r2 = G.pos.r + DIRS[d].dr, c2 = G.pos.c + DIRS[d].dc;
     const room = G.grid[r2][c2];
@@ -1804,6 +1889,7 @@
     if (fx.coins) { G.coins += fx.coins; morceaux.push("+" + fx.coins + " pièces"); }
     if (fx.gem) {
       G.gems.push({ axe: fx.gem.axe, max: fx.gem.max });
+      toast("💎 Gemme " + (fx.gem.axe === "H" ? "↔" : "↕") + " : touchez-la dans le panneau pour décaler une " + (fx.gem.axe === "H" ? "ligne" : "colonne") + " du plan");
       morceaux.push("une gemme " + (fx.gem.axe === "H" ? "↔" : "↕") + (fx.gem.max === 2 ? " rare" : ""));
     }
     if (fx.fragment && G.fragments < FRAGMENTS.length) {
@@ -1830,7 +1916,8 @@
     const D = G.draft;
     const cand = D.cands[i];
     if (cand.interdit) return interditIci(cand);
-    son("pose-salle");
+    son(cand.tpl.niv >= 3 ? "pose-tres-lourde" : cand.tpl.niv === 2 || cand.tpl.kind === "trap" ? "pose-lourde" : "pose-salle");
+    setTimeout(() => fxPose(D.tr, D.tc, cand.tpl.niv, cand.tpl.kind), 90);
     G.envs.forEach((e) => (e.posee = true)); // la prochaine salle est posée : ces effets s'éteindront après le pas qui y entre
     G.grid[D.tr][D.tc] = { fraiche: true, tpl: cand.tpl, doors: cand.doors, visited: false, theme: cand.theme, card: cand.card };
     defausserMain(D.cands); // les trois cartes tirées vont à la défausse
@@ -1900,11 +1987,13 @@
   // Est-il encore possible d'aller quelque part ? Sinon, impasse.
   function impasse() {
     if (gemUtile()) return false;
+    if (enPortail() && portailsAutres().length) return false; // un portail permet encore d'avancer
     const vus = new Set();
     const file = [[G.pos.r, G.pos.c]];
     vus.add(G.pos.r + "," + G.pos.c);
     while (file.length) {
       const [r, c] = file.shift();
+      if (G.grid[r][c] && G.grid[r][c].tpl.id === "portail" && portailsAutres(r, c).length) return false;
       for (let d = 0; d < 4; d++) {
         const e = edge(r, c, d);
         if (e.s === "locked" || e.s === "ajar") return false;
@@ -2120,6 +2209,7 @@
     if (fx.seals) parts.push("🗝");
     if (fx.time) parts.push("⏳");
     if (fx.coins) parts.push("🪙");
+    if (fx.portail) parts.push("🌀");
     if (fx.fragment) parts.push("📜");
     if (fx.shop) parts.push("💰");
     if (fx.gem) parts.push((fx.gem.max === 2 ? "💎" : "") + (fx.gem.axe === "H" ? "↔" : "↕"));
@@ -2195,6 +2285,7 @@
     if (fx.seals) p.push("+" + fx.seals + " sceau");
     if (fx.time) p.push("+" + fx.time + " s par énigme");
     if (fx.coins) p.push("+" + fx.coins + " pièces");
+    if (fx.portail) p.push("un portail : de cette salle, on rejoint une autre salle portail pour 1 pas (il en faut deux)");
     if (fx.fragment) p.push("un fragment du carnet de Valcourt");
     if (fx.shop) p.push("une boutique : achat de cartes, retrait d'une carte");
     if (fx.gem) p.push("une gemme " + (fx.gem.axe === "H" ? "↔ (décale une ligne" : "↕ (décale une colonne") + (fx.gem.max === 2 ? " de 1 ou 2 crans, rare)" : " d'un cran)"));
@@ -2234,6 +2325,10 @@
             else if (e.s === "locked" || e.s === "ajar") cls += " can-open";
             if (e.s !== "wall") action = ` data-act="go" data-d="${d}"`;
           }
+        }
+        if (room && !G.draft && !gemS && !G.over && !cur && action === "" && room.tpl.id === "portail" && enPortail()) {
+          cls += " can-portail";
+          action = ` data-act="portail" data-r="${r}" data-c="${c}"`;
         }
         if (room) {
           const cotes = [0, 1, 2, 3].map((k) => coteEtat(r, c, k));
@@ -2281,7 +2376,7 @@
         const fl = g.axe === "H" ? "↔" : "↕";
         const actif = G.shift && G.shift.gi === i;
         const inutile = lignesUtiles(g.axe) === 0;
-        return `<button class="chip gem-btn${actif ? " actif" : ""}${inutile ? " inutile" : ""}" data-act="gem" data-i="${i}" title="Gemme ${g.axe === "H" ? "horizontale : décale une ligne" : "verticale : décale une colonne"} de ${g.max === 2 ? "1 ou 2 crans" : "1 cran"}${inutile ? ". Aucune " + (g.axe === "H" ? "ligne" : "colonne") + " à décaler pour l'instant." : ""}">💎 <b>${fl}</b>${g.max === 2 ? "<sup>2</sup>" : ""}</button>`;
+        return `<button class="chip gem-btn${actif ? " actif" : ""}${inutile ? " inutile" : " dispo"}" data-act="gem" data-i="${i}" title="Gemme ${g.axe === "H" ? "horizontale : décale une ligne" : "verticale : décale une colonne"} de ${g.max === 2 ? "1 ou 2 crans" : "1 cran"}${inutile ? ". Aucune " + (g.axe === "H" ? "ligne" : "colonne") + " à décaler pour l'instant." : ""}">💎 <b>${fl}</b>${g.max === 2 ? "<sup>2</sup>" : ""}</button>`;
       })
       .join("");
   }
@@ -2416,6 +2511,7 @@
     ${G.draft ? tirageHTML() : ""}
     ${jokersHTML()}
     ${envsHTML()}
+    ${portailHTML()}
     <section class="carte">
       <h3>Vous êtes ici</h3>
       <p class="salle-nom">${esc(room.tpl.nom)}</p>
@@ -2560,7 +2656,7 @@
         <p class="menu-foot">${esc(rec)}</p>
         ${fetiche() ? `<p class="menu-foot">📌 Joker fétiche : <b>${JOKERS_PAR_ID[fetiche()].icone} ${esc(JOKERS_PAR_ID[fetiche()].nom)}</b> <button class="lien-petit" data-act="fetiche-abandon">l'abandonner</button></p>` : ""}
         <p class="menu-foot menu-liens"><button class="lien-petit" data-act="tout-debloquer">Je connais déjà le jeu : tout débloquer</button>${P.max > 1 || Object.keys(P.vus).length ? ` · <button class="lien-petit" data-act="reinit-paliers">Recommencer la progression</button>` : ""}</p>
-        <p class="menu-foot">Prototype · Maison Paradoxe</p>
+        <p class="menu-foot">Version 1.0 · Maison Paradoxe</p>
       </div>
     </div>`;
   }
@@ -3288,6 +3384,9 @@
       case "exploits":
         modaleExploits();
         break;
+      case "portail":
+        traverserPortail(parseInt(el.getAttribute("data-r"), 10), parseInt(el.getAttribute("data-c"), 10));
+        break;
       case "pion-forme":
         sauverPion({ forme: el.getAttribute("data-f"), couleur: pion().couleur });
         son("clic");
@@ -3595,5 +3694,5 @@
   render();
 
   // Petit accès pour les essais dans la console du navigateur
-  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, REGL, majMusique, demarrerMusique, modaleSon, fxActifs, flotter, confettis, pion, sauverPion, FORMES_PION, COULEURS_PION, verifierDebord, ajouterCarte, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
+  window.SEUIL = { get partie() { return G; }, get enigme() { return pz && pz.puzzle; }, render: () => render(), t: { PALIERS, reglesDe, paliers, palierSuivant, dernierPalierPret, edge, PLANS, parserPlan, chargerEtage, finEtage, nouvelEtage, casesMobiles, portailsAutres, traverserPortail, enPortail, fxPose, REGL, majMusique, demarrerMusique, modaleSon, fxActifs, flotter, confettis, pion, sauverPion, FORMES_PION, COULEURS_PION, verifierDebord, ajouterCarte, son, SONS, sonsManquants, PACKS, construirePack, acheterPack, niveauTag, SALLES, POIDS_NIVEAU, makeMastermind, noterCode, makeMurdle, noterMot, MOTS5, ordreDesRegles, reglesLibres, nouvellePartie, fetiche, sauverFetiche, EXPLOITS, exploits, exploitFait, controler, salleVerrouillee, jokerVerrouille, ENVIRONNEMENTS, ouvrirTirage, apercu, choisir, tenter, tirerEffets, texteEnv, ouvrirBoutique, modaleBoutique, tirage, offrir, offrirJokers, avecFlux, defausserMain, deplacer, plafondDeck, decaler, ligneOk, crans, declencher, JOKERS }, gen: (l, t) => avecFlux("test:" + l + t, () => makePuzzle(l, t)) };
 })();

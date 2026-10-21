@@ -21,6 +21,16 @@ Les fichiers reçus ont été retaillés (silences et queues trop longues coupé
 
 Les sons de repli (voir `SONS` dans `seuil.js`) ne servent plus que si un fichier est supprimé.
 
+## Nouveaux sons à fournir (poids des salles et portails)
+
+Tant qu'un fichier manque, le jeu joue `pose-salle` (ou `page` pour le portail). Durées conseillées, MP3, mono ou stéréo, volume de crête vers -5 dB.
+
+| Fichier | Durée | Quand | À quoi il devrait ressembler |
+| --- | --- | --- | --- |
+| `pose-lourde.mp3` | 0,8 à 1,2 s | Une salle de niveau 2 ou un piège se pose | Un impact sourd de pierre, avec un peu de gravats qui retombent |
+| `pose-tres-lourde.mp3` | 1,2 à 1,8 s | Une salle de niveau 3 se pose | Un choc profond (grosse pierre, sous-basse), une petite secousse, des gravats |
+| `portail.mp3` | 0,6 à 1 s | On traverse un portail | Un souffle d'air qui aspire puis claque, avec une note cristalline qui monte |
+
 ## Plus tard (non branchés)
 
 Nappe d'ambiance en boucle (désactivable à part), son de glisser pour l'ouverture d'un paquet (déchirure progressive), retrait ou jet d'une carte, clic de touche du Wordle et du Mastermind.
